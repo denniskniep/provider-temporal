@@ -21,7 +21,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/denniskniep/provider-temporal/internal/controller/config"
-	"github.com/denniskniep/provider-temporal/internal/controller/namespace"
+	"github.com/denniskniep/provider-temporal/internal/controller/temporalnamespace"
 )
 
 // Setup creates all temporal controllers with the supplied logger and adds them to
@@ -29,7 +29,7 @@ import (
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
-		namespace.Setup,
+		temporalnamespace.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

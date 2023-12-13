@@ -17,12 +17,13 @@ Covered Resources
 
 1. Add new type by running the following command:
 ```shell
-  export group=sample # lower case e.g. core, cache, database, storage, etc.
+  export provider_name=temporal
+  export group=core # lower case e.g. core, cache, database, storage, etc.
   export type=MyType # Camel casee.g. Bucket, Database, CacheCluster, etc.
   make provider.addtype provider=${provider_name} group=${group} kind=${type}
 ```
-2. Replace the *sample* group with your new group in apis/{provider}.go
-3. Replace the *mytype* type with your new type in internal/controller/{provider}.go
+2. Replace the *core* group with your new group in apis/{provider}.go
+3. Replace the *MyType* type with your new type in internal/controller/{provider}.go
 
 4. Run `make reviewable` to run code generation, linters, and tests.
 5. Run `make build` to build the provider.

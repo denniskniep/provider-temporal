@@ -13,9 +13,8 @@ import (
 )
 
 func createTemporalService(t *testing.T) TemporalService {
-
 	jsonConfig := `{
-		"HostPort": "temporal.k8s.local:7233"
+		"HostPort": "temporal.k8s.localhost:7233"
 	}`
 
 	temporalService := createTemporalServiceWithConfig(t, jsonConfig)
@@ -35,24 +34,72 @@ func createTemporalServiceWithConfig(t *testing.T, jsonConfig string) TemporalSe
 	return service
 }
 
-func TestCreate(t *testing.T) {
+func TestDeleteTwice(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalService(t)
 
-	testNamespace := &core.NamespaceParameters{
+	testNamespace := &core.TemporalNamespaceParameters{
 		Name:        "Test1",
 		Description: "Desc1",
 		OwnerEmail:  "Test1@mail.local",
 	}
 
-	created, err := temporalService.CreateNamespace(context.Background(), testNamespace)
-
+	err := temporalService.CreateNamespace(context.Background(), testNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assertNamespaceAreEqual(t, created, testNamespace)
+	err = temporalService.DeleteNamespaceByName(context.Background(), testNamespace.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = temporalService.DeleteNamespaceByName(context.Background(), testNamespace.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertNamespacesCount(t, temporalService, 0)
+}
+
+func TestDescribeNotExistingNamespace(t *testing.T) {
+	skipIfIsShort(t)
+
+	temporalService := createTemporalService(t)
+
+	namespace, err := temporalService.DescribeNamespaceByName(context.Background(), "DoesNotExist")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if namespace != nil {
+		t.Fatal("Namespace should not exist")
+	}
+}
+
+func TestCreate(t *testing.T) {
+	skipIfIsShort(t)
+
+	temporalService := createTemporalService(t)
+
+	testNamespace := &core.TemporalNamespaceParameters{
+		Name:        "Test1",
+		Description: "Desc1",
+		OwnerEmail:  "Test1@mail.local",
+	}
+
+	err := temporalService.CreateNamespace(context.Background(), testNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	created, err := temporalService.DescribeNamespaceByName(context.Background(), testNamespace.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertNamespaceAreEqual(t, temporalService, created, testNamespace)
 	assertNamespacesCount(t, temporalService, 1)
 }
 
@@ -61,48 +108,60 @@ func TestCreateUpdate(t *testing.T) {
 
 	temporalService := createTemporalService(t)
 
-	testNamespace1 := &core.NamespaceParameters{
+	testNamespace1 := &core.TemporalNamespaceParameters{
 		Name:        "Test1",
 		Description: "Desc1",
 		OwnerEmail:  "Test1@mail.local",
 	}
-	created1, err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
-
+	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {
 		t.Fatal(err1)
 	}
 
-	assertNamespaceAreEqual(t, created1, testNamespace1)
+	created1, err1 := temporalService.DescribeNamespaceByName(context.Background(), testNamespace1.Name)
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+
+	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
 	assertNamespacesCount(t, temporalService, 1)
 
-	testNamespace2 := &core.NamespaceParameters{
+	testNamespace2 := &core.TemporalNamespaceParameters{
 		Name:        "Test2",
 		Description: "Desc2",
 		OwnerEmail:  "Test2@mail.local",
 	}
-	created2, err2 := temporalService.CreateNamespace(context.Background(), testNamespace2)
-
+	err2 := temporalService.CreateNamespace(context.Background(), testNamespace2)
 	if err2 != nil {
 		t.Fatal(err2)
 	}
 
-	assertNamespaceAreEqual(t, created1, testNamespace1)
-	assertNamespaceAreEqual(t, created2, testNamespace2)
+	created2, err2 := temporalService.DescribeNamespaceByName(context.Background(), testNamespace2.Name)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+
+	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
+	assertNamespaceAreEqual(t, temporalService, created2, testNamespace2)
 	assertNamespacesCount(t, temporalService, 2)
 
-	testNamespaceUpdate := &core.NamespaceParameters{
+	testNamespaceUpdate := &core.TemporalNamespaceParameters{
 		Name:        "Test2",
 		Description: "Updated2",
 		OwnerEmail:  "Updated2@mail.local",
 	}
-	updated, err := temporalService.UpdateNamespaceById(context.Background(), created2.Id, testNamespaceUpdate)
-
+	err := temporalService.UpdateNamespaceByName(context.Background(), testNamespaceUpdate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assertNamespaceAreEqual(t, created1, testNamespace1)
-	assertNamespaceAreEqual(t, updated, testNamespaceUpdate)
+	updated, err := temporalService.DescribeNamespaceByName(context.Background(), testNamespaceUpdate.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
+	assertNamespaceAreEqual(t, temporalService, updated, testNamespaceUpdate)
 	assertNamespacesCount(t, temporalService, 2)
 }
 
@@ -111,18 +170,22 @@ func TestCreateDeleteByName(t *testing.T) {
 
 	temporalService := createTemporalService(t)
 
-	testNamespace1 := &core.NamespaceParameters{
+	testNamespace1 := &core.TemporalNamespaceParameters{
 		Name:        "Test1",
 		Description: "Desc1",
 		OwnerEmail:  "Test1@mail.local",
 	}
-	created1, err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
-
+	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {
 		t.Fatal(err1)
 	}
 
-	assertNamespaceAreEqual(t, created1, testNamespace1)
+	created1, err1 := temporalService.DescribeNamespaceByName(context.Background(), testNamespace1.Name)
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+
+	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
 	assertNamespacesCount(t, temporalService, 1)
 
 	temporalService.DeleteNamespaceByName(context.Background(), created1.Name)
@@ -135,27 +198,32 @@ func TestCreateDeleteById(t *testing.T) {
 
 	temporalService := createTemporalService(t)
 
-	testNamespace1 := &core.NamespaceParameters{
+	testNamespace1 := &core.TemporalNamespaceParameters{
 		Name:        "Test1",
 		Description: "Desc1",
 		OwnerEmail:  "Test1@mail.local",
 	}
-	created1, err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 
+	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {
 		t.Fatal(err1)
 	}
 
-	assertNamespaceAreEqual(t, created1, testNamespace1)
+	created1, err1 := temporalService.DescribeNamespaceByName(context.Background(), testNamespace1.Name)
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+
+	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
 	assertNamespacesCount(t, temporalService, 1)
 
-	temporalService.DeleteNamespaceById(context.Background(), created1.Id)
+	temporalService.DeleteNamespaceByName(context.Background(), created1.Name)
 
 	assertNamespacesCount(t, temporalService, 0)
 }
 
-func assertNamespaceAreEqual(t *testing.T, actual *core.NamespaceObservation, expected *core.NamespaceParameters) {
-	mappedActual, err := mapToNamespaceParameters(actual)
+func assertNamespaceAreEqual(t *testing.T, temporalService TemporalService, actual *core.TemporalNamespaceObservation, expected *core.TemporalNamespaceParameters) {
+	mappedActual, err := temporalService.MapObservationToNamespaceParameters(actual)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +239,9 @@ func assertNamespacesCount(t *testing.T, temporalService TemporalService, expect
 		t.Fatal(err)
 	}
 	if len(namespaces) != expectedCount {
-		t.Fatal("Expected Namespace Count is " + strconv.Itoa(expectedCount) + ", but was " + strconv.Itoa(len(namespaces)))
+		namespacesAsJson, err := json.Marshal(namespaces)
+		t.Error(err)
+		t.Fatal("Expected Namespace Count is " + strconv.Itoa(expectedCount) + ", but was " + strconv.Itoa(len(namespaces)) + "\n" + string(namespacesAsJson))
 	}
 }
 
@@ -181,17 +251,4 @@ func skipIfIsShort(t *testing.T) {
 	}
 }
 
-func mapToNamespaceParameters(ns *core.NamespaceObservation) (*core.NamespaceParameters, error) {
-	nsJson, err := json.Marshal(ns)
-	if err != nil {
-		return nil, err
-	}
 
-	var nsParam = core.NamespaceParameters{}
-	err = json.Unmarshal(nsJson, &nsParam)
-	if err != nil {
-		return nil, err
-	}
-
-	return &nsParam, nil
-}

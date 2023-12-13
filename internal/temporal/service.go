@@ -19,18 +19,21 @@ import (
 )
 
 type TemporalService interface {
-	DescribeNamespaceById(ctx context.Context, id string) (*core.NamespaceObservation, error)
-	DescribeNamespaceByName(ctx context.Context, name string) (*core.NamespaceObservation, error)
-	CreateNamespace(ctx context.Context, namespace *core.NamespaceParameters) (*core.NamespaceObservation, error)
-	DeleteNamespaceById(ctx context.Context, id string) error
+	DescribeNamespaceByName(ctx context.Context, name string) (*core.TemporalNamespaceObservation, error)
+
+	CreateNamespace(ctx context.Context, namespace *core.TemporalNamespaceParameters) error
+	UpdateNamespaceByName(ctx context.Context, namespace *core.TemporalNamespaceParameters) error
 	DeleteNamespaceByName(ctx context.Context, name string) error
+
 	DeleteAllNamespaces(ctx context.Context) error
-	ListAllNamespaces(ctx context.Context) ([]*core.NamespaceObservation, error)
-	UpdateNamespaceById(ctx context.Context, id string, namespace *core.NamespaceParameters) (*core.NamespaceObservation, error)
+	ListAllNamespaces(ctx context.Context) ([]*core.TemporalNamespaceObservation, error)
+
+	MapObservationToNamespaceParameters(ns *core.TemporalNamespaceObservation) (*core.TemporalNamespaceParameters, error)
 }
 
 type TemporalServiceImpl struct {
 	client client.Client
+	logger *slog.Logger
 }
 
 func NewTemporalService(configData []byte) (TemporalService, error) {
@@ -55,10 +58,28 @@ func NewTemporalService(configData []byte) (TemporalService, error) {
 		return nil, err
 	}
 
-	return &TemporalServiceImpl{client: temporalClient}, err
+	return &TemporalServiceImpl{
+		client: temporalClient,
+		logger: logger,
+	}, err
 }
 
-func (s *TemporalServiceImpl) CreateNamespace(ctx context.Context, namespace *core.NamespaceParameters) (*core.NamespaceObservation, error) {
+func (s *TemporalServiceImpl) MapObservationToNamespaceParameters(ns *core.TemporalNamespaceObservation) (*core.TemporalNamespaceParameters, error) {
+	nsJson, err := json.Marshal(ns)
+	if err != nil {
+		return nil, err
+	}
+
+	var nsParam = core.TemporalNamespaceParameters{}
+	err = json.Unmarshal(nsJson, &nsParam)
+	if err != nil {
+		return nil, err
+	}
+
+	return &nsParam, nil
+}
+
+func (s *TemporalServiceImpl) CreateNamespace(ctx context.Context, namespace *core.TemporalNamespaceParameters) error {
 	var defaultDuration = 30 * 24 * time.Hour
 
 	createrequest := &workflowservice.RegisterNamespaceRequest{
@@ -69,30 +90,18 @@ func (s *TemporalServiceImpl) CreateNamespace(ctx context.Context, namespace *co
 	}
 
 	_, err := s.client.WorkflowService().RegisterNamespace(ctx, createrequest)
+	var namespaceAlreadyExists *serviceerror.NamespaceAlreadyExists
 
-	createdSuccessfully := err == nil
-	var errType *serviceerror.NamespaceAlreadyExists
-	alreadyExists := errors.As(err, &errType)
-
-	if createdSuccessfully || alreadyExists {
-		return s.DescribeNamespaceByName(ctx, namespace.Name)
+	if errors.As(err, &namespaceAlreadyExists) {
+		s.logger.Debug("Namespace '" + namespace.Name + "' already exists. " + err.Error())
+		return nil
 	}
-
-	return nil, err
-}
-
-func (s *TemporalServiceImpl) DeleteNamespaceById(ctx context.Context, id string) error {
-	namespace, err := s.DescribeNamespaceById(ctx, id)
 
 	if err != nil {
 		return err
 	}
 
-	if namespace == nil {
-		return nil
-	}
-
-	return s.DeleteNamespaceByName(ctx, namespace.Name)
+	return nil
 }
 
 func (s *TemporalServiceImpl) DeleteAllNamespaces(ctx context.Context) error {
@@ -112,12 +121,57 @@ func (s *TemporalServiceImpl) DeleteAllNamespaces(ctx context.Context) error {
 	return nil
 }
 
+func (s *TemporalServiceImpl) DescribeNamespaceByName(ctx context.Context, name string) (*core.TemporalNamespaceObservation, error) {
+	request := &workflowservice.DescribeNamespaceRequest{
+		Namespace: name,
+	}
+
+	response, err := s.client.WorkflowService().DescribeNamespace(ctx, request)
+
+	var namespaceNotFound *serviceerror.NamespaceNotFound
+	if errors.As(err, &namespaceNotFound) {
+		s.logger.Debug("Namespace '" + name + "' not found. " + err.Error())
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil {
+		return nil, nil
+	}
+
+	return mapDescribeNamespaceResponse(response), nil
+}
+
 func (s *TemporalServiceImpl) DeleteNamespaceByName(ctx context.Context, name string) error {
 	deleterequest := &operatorservice.DeleteNamespaceRequest{
 		Namespace: name,
 	}
 
-	_, err := s.client.OperatorService().DeleteNamespace(ctx, deleterequest)
+	namespace, err := s.DescribeNamespaceByName(ctx, name)
+	if namespace != nil {
+		response, err := s.client.OperatorService().DeleteNamespace(ctx, deleterequest)
+
+		var namespaceInvalidState *serviceerror.NamespaceInvalidState
+		if errors.As(err, &namespaceInvalidState) {
+			s.logger.Debug("Namespace '" + namespace.Name + "' invalid state. " + err.Error())
+			return nil
+		}
+
+		var namespaceNotFound *serviceerror.NamespaceNotFound
+		if errors.As(err, &namespaceNotFound) {
+			s.logger.Debug("Namespace '" + namespace.Name + "' not found. " + err.Error())
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		s.logger.Debug("Namespace '" + namespace.Name + "' deleted. Temporary namespace name that is used during reclaim resources step: '" + response.DeletedNamespace + "' ")
+	}
 
 	if err != nil {
 		return err
@@ -126,35 +180,18 @@ func (s *TemporalServiceImpl) DeleteNamespaceByName(ctx context.Context, name st
 	return nil
 }
 
-func (s *TemporalServiceImpl) DescribeNamespaceById(ctx context.Context, id string) (*core.NamespaceObservation, error) {
-	request := &workflowservice.DescribeNamespaceRequest{
-		Id: id,
-	}
-
-	response, err := s.client.WorkflowService().DescribeNamespace(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-
-	// Does not exist
-	if response == nil {
-		return nil, nil
-	}
-
-	return mapDescribeNamespaceResponse(response), nil
-}
-
-func mapDescribeNamespaceResponse(response *workflowservice.DescribeNamespaceResponse) *core.NamespaceObservation {
-	return &core.NamespaceObservation{
+func mapDescribeNamespaceResponse(response *workflowservice.DescribeNamespaceResponse) *core.TemporalNamespaceObservation {
+	return &core.TemporalNamespaceObservation{
 		Id:          response.NamespaceInfo.Id,
 		Name:        response.NamespaceInfo.Name,
 		Description: response.NamespaceInfo.Description,
 		OwnerEmail:  response.NamespaceInfo.OwnerEmail,
+		State:       response.NamespaceInfo.State.String(),
 	}
 }
 
-func (s *TemporalServiceImpl) DescribeNamespaceByName(ctx context.Context, name string) (*core.NamespaceObservation, error) {
-
+func (s *TemporalServiceImpl) ListAllNamespaces(ctx context.Context) ([]*core.TemporalNamespaceObservation, error) {
+	// TODO: Pagination
 	request := &workflowservice.ListNamespacesRequest{
 		PageSize: 100,
 	}
@@ -164,31 +201,10 @@ func (s *TemporalServiceImpl) DescribeNamespaceByName(ctx context.Context, name 
 		return nil, err
 	}
 
-	for _, response := range responses.Namespaces {
-		if response.NamespaceInfo.Name == name {
-			return mapDescribeNamespaceResponse(response), nil
-		}
-	}
-
-	// Does not exist
-	return nil, nil
-}
-
-func (s *TemporalServiceImpl) ListAllNamespaces(ctx context.Context) ([]*core.NamespaceObservation, error) {
-
-	request := &workflowservice.ListNamespacesRequest{
-		PageSize: 100,
-	}
-
-	responses, err := s.client.WorkflowService().ListNamespaces(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-
-	var namespaces = []*core.NamespaceObservation{}
+	var namespaces = []*core.TemporalNamespaceObservation{}
 	for _, response := range responses.Namespaces {
 		namespace := mapDescribeNamespaceResponse(response)
-		if namespace.Name != "temporal-system" {
+		if namespace.Name != "temporal-system" && namespace.State != "Deleted" {
 			namespaces = append(namespaces, namespace)
 		}
 	}
@@ -196,36 +212,20 @@ func (s *TemporalServiceImpl) ListAllNamespaces(ctx context.Context) ([]*core.Na
 	return namespaces, nil
 }
 
-func (s *TemporalServiceImpl) UpdateNamespaceById(ctx context.Context, id string, namespace *core.NamespaceParameters) (*core.NamespaceObservation, error) {
-
-	found, err := s.DescribeNamespaceById(ctx, id)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if namespace == nil {
-		return nil, nil
-	}
-
+func (s *TemporalServiceImpl) UpdateNamespaceByName(ctx context.Context, namespace *core.TemporalNamespaceParameters) error {
 	updaterequest := &workflowservice.UpdateNamespaceRequest{
-		Namespace: found.Name,
+		Namespace: namespace.Name,
 		UpdateInfo: &ns.UpdateNamespaceInfo{
 			Description: namespace.Description,
 			OwnerEmail:  namespace.OwnerEmail,
 		},
 	}
 
-	_, err = s.client.WorkflowService().UpdateNamespace(ctx, updaterequest)
+	_, err := s.client.WorkflowService().UpdateNamespace(ctx, updaterequest)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	afterUpdate, err := s.DescribeNamespaceByName(ctx, namespace.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	return afterUpdate, nil
+	return nil
 }
