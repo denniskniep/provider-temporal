@@ -34,7 +34,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A TemporalNamespace is an example API type.
+        description: A TemporalNamespace is an API type.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation

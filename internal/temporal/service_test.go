@@ -250,5 +250,3 @@ func skipIfIsShort(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 }
-
-

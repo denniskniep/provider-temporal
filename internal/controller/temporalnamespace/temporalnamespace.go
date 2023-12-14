@@ -12,6 +12,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -148,6 +149,18 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	// Update Status
 	cr.Status.AtProvider = *observed
+
+	if observed.State == "Registered" {
+		cr.SetConditions(xpv1.Available().WithMessage("Namespace.State = " + observed.State))
+	}
+
+	if observed.State == "Unspecified" {
+		cr.SetConditions(xpv1.Unavailable().WithMessage("Namespace.State = " + observed.State))
+	}
+
+	if observed.State == "Deleted" {
+		cr.SetConditions(xpv1.Deleting().WithMessage("Namespace.State = " + observed.State))
+	}
 
 	observedAsSpec, err := c.service.MapObservationToNamespaceParameters(observed)
 	if err != nil {
