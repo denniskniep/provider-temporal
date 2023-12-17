@@ -33,6 +33,11 @@ const (
 	errGetCreds             = "cannot get credentials"
 
 	errNewClient = "cannot create new Service"
+	errDescribe  = "failed to describe Namespace resource"
+	errCreate    = "failed to create Namespace resource"
+	errUpdate    = "failed to update Namespace resource"
+	errDelete    = "failed to delete Namespace resource"
+	errMapping   = "failed to map Namespace resource"
 )
 
 // Setup adds a controller that reconciles TemporalNamespace managed resources.
@@ -133,7 +138,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	observed, err := c.service.DescribeNamespaceByName(ctx, cr.Spec.ForProvider.Name)
 	if err != nil {
-		return managed.ExternalObservation{}, err
+		return managed.ExternalObservation{}, errors.Wrap(err, errDescribe)
 	}
 
 	if observed == nil {
@@ -164,7 +169,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	observedAsSpec, err := c.service.MapObservationToNamespaceParameters(observed)
 	if err != nil {
-		return managed.ExternalObservation{}, err
+		return managed.ExternalObservation{}, errors.Wrap(err, errMapping)
 	}
 
 	diff := ""
@@ -196,7 +201,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	err := c.service.CreateNamespace(ctx, &cr.Spec.ForProvider)
 
 	if err != nil {
-		return managed.ExternalCreation{}, err
+		return managed.ExternalCreation{}, errors.Wrap(err, errCreate)
 	}
 
 	meta.SetExternalName(cr, cr.Spec.ForProvider.Name)
@@ -220,7 +225,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	err := c.service.UpdateNamespaceByName(ctx, &cr.Spec.ForProvider)
 
 	if err != nil {
-		return managed.ExternalUpdate{}, err
+		return managed.ExternalUpdate{}, errors.Wrap(err, errUpdate)
 	}
 
 	c.logger.Debug("Managed resource '" + cr.Name + "' updated")
@@ -242,7 +247,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	err := c.service.DeleteNamespaceByName(ctx, cr.Spec.ForProvider.Name)
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, errDelete)
 	}
 
 	c.logger.Debug("Managed resource '" + cr.Name + "' deleted")

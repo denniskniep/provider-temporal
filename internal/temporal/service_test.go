@@ -12,12 +12,13 @@ import (
 	core "github.com/denniskniep/provider-temporal/apis/core/v1alpha1"
 )
 
-func createTemporalService(t *testing.T) TemporalService {
+func createTemporalService(t *testing.T) *TemporalServiceImpl {
 	jsonConfig := `{
 		"HostPort": "temporal.k8s.localhost:7233"
 	}`
 
 	temporalService := createTemporalServiceWithConfig(t, jsonConfig)
+
 	err := temporalService.DeleteAllNamespaces(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -26,12 +27,17 @@ func createTemporalService(t *testing.T) TemporalService {
 	return temporalService
 }
 
-func createTemporalServiceWithConfig(t *testing.T, jsonConfig string) TemporalService {
+func createTemporalServiceWithConfig(t *testing.T, jsonConfig string) *TemporalServiceImpl {
 	service, err := NewTemporalService([]byte(jsonConfig))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return service
+
+	impl, ok := service.(*TemporalServiceImpl)
+	if !ok {
+		t.Fatal("Not of type TemporalServiceImpl")
+	}
+	return impl
 }
 
 func TestDeleteTwice(t *testing.T) {
@@ -233,7 +239,7 @@ func assertNamespaceAreEqual(t *testing.T, temporalService TemporalService, actu
 	}
 }
 
-func assertNamespacesCount(t *testing.T, temporalService TemporalService, expectedCount int) {
+func assertNamespacesCount(t *testing.T, temporalService *TemporalServiceImpl, expectedCount int) {
 	namespaces, err := temporalService.ListAllNamespaces(context.Background())
 	if err != nil {
 		t.Fatal(err)

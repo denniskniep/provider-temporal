@@ -24,10 +24,7 @@ type TemporalService interface {
 	CreateNamespace(ctx context.Context, namespace *core.TemporalNamespaceParameters) error
 	UpdateNamespaceByName(ctx context.Context, namespace *core.TemporalNamespaceParameters) error
 	DeleteNamespaceByName(ctx context.Context, name string) error
-
-	DeleteAllNamespaces(ctx context.Context) error
-	ListAllNamespaces(ctx context.Context) ([]*core.TemporalNamespaceObservation, error)
-
+	
 	MapObservationToNamespaceParameters(ns *core.TemporalNamespaceObservation) (*core.TemporalNamespaceParameters, error)
 }
 
