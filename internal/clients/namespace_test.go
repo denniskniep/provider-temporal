@@ -13,11 +13,7 @@ import (
 )
 
 func createTemporalNamespaceService(t *testing.T) *TemporalServiceImpl {
-	jsonConfig := `{
-		"HostPort": "temporal.k8s.localhost:7233"
-	}`
-
-	temporalService := createTemporalServiceWithConfig(t, jsonConfig)
+	temporalService := createTemporalService(t)
 
 	err := temporalService.DeleteAllNamespaces(context.Background())
 	if err != nil {

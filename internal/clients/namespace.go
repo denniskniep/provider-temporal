@@ -151,7 +151,7 @@ func mapDescribeNamespaceResponse(response *workflowservice.DescribeNamespaceRes
 }
 
 func (s *TemporalServiceImpl) ListAllNamespaces(ctx context.Context) ([]*core.TemporalNamespaceObservation, error) {
-	// TODO: Pagination
+	// TODO: Pagination (method only used in tests)
 	request := &workflowservice.ListNamespacesRequest{
 		PageSize: 100,
 	}
