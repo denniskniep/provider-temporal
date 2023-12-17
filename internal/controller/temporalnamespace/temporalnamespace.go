@@ -22,8 +22,8 @@ import (
 
 	"github.com/denniskniep/provider-temporal/apis/core/v1alpha1"
 	apisv1alpha1 "github.com/denniskniep/provider-temporal/apis/v1alpha1"
+	temporal "github.com/denniskniep/provider-temporal/internal/clients"
 	"github.com/denniskniep/provider-temporal/internal/features"
-	temporal "github.com/denniskniep/provider-temporal/internal/temporal"
 )
 
 const (
@@ -77,7 +77,7 @@ type connector struct {
 	kube         client.Client
 	usage        resource.Tracker
 	logger       logging.Logger
-	newServiceFn func(creds []byte) (temporal.TemporalService, error)
+	newServiceFn func(creds []byte) (temporal.NamespaceService, error)
 }
 
 // Connect typically produces an ExternalClient by:
@@ -121,7 +121,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service temporal.TemporalService
+	service temporal.NamespaceService
 	logger  logging.Logger
 }
 

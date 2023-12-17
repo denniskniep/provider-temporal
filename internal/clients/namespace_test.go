@@ -1,4 +1,4 @@
-package temporal
+package clients
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 	core "github.com/denniskniep/provider-temporal/apis/core/v1alpha1"
 )
 
-func createTemporalService(t *testing.T) *TemporalServiceImpl {
+func createTemporalNamespaceService(t *testing.T) *TemporalServiceImpl {
 	jsonConfig := `{
 		"HostPort": "temporal.k8s.localhost:7233"
 	}`
@@ -27,23 +27,10 @@ func createTemporalService(t *testing.T) *TemporalServiceImpl {
 	return temporalService
 }
 
-func createTemporalServiceWithConfig(t *testing.T, jsonConfig string) *TemporalServiceImpl {
-	service, err := NewTemporalService([]byte(jsonConfig))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	impl, ok := service.(*TemporalServiceImpl)
-	if !ok {
-		t.Fatal("Not of type TemporalServiceImpl")
-	}
-	return impl
-}
-
 func TestDeleteTwice(t *testing.T) {
 	skipIfIsShort(t)
 
-	temporalService := createTemporalService(t)
+	temporalService := createTemporalNamespaceService(t)
 
 	testNamespace := &core.TemporalNamespaceParameters{
 		Name:        "Test1",
@@ -72,7 +59,7 @@ func TestDeleteTwice(t *testing.T) {
 func TestDescribeNotExistingNamespace(t *testing.T) {
 	skipIfIsShort(t)
 
-	temporalService := createTemporalService(t)
+	temporalService := createTemporalNamespaceService(t)
 
 	namespace, err := temporalService.DescribeNamespaceByName(context.Background(), "DoesNotExist")
 	if err != nil {
@@ -87,7 +74,7 @@ func TestDescribeNotExistingNamespace(t *testing.T) {
 func TestCreate(t *testing.T) {
 	skipIfIsShort(t)
 
-	temporalService := createTemporalService(t)
+	temporalService := createTemporalNamespaceService(t)
 
 	testNamespace := &core.TemporalNamespaceParameters{
 		Name:        "Test1",
@@ -112,7 +99,7 @@ func TestCreate(t *testing.T) {
 func TestCreateUpdate(t *testing.T) {
 	skipIfIsShort(t)
 
-	temporalService := createTemporalService(t)
+	temporalService := createTemporalNamespaceService(t)
 
 	testNamespace1 := &core.TemporalNamespaceParameters{
 		Name:        "Test1",
@@ -174,7 +161,7 @@ func TestCreateUpdate(t *testing.T) {
 func TestCreateDeleteByName(t *testing.T) {
 	skipIfIsShort(t)
 
-	temporalService := createTemporalService(t)
+	temporalService := createTemporalNamespaceService(t)
 
 	testNamespace1 := &core.TemporalNamespaceParameters{
 		Name:        "Test1",
@@ -202,7 +189,7 @@ func TestCreateDeleteByName(t *testing.T) {
 func TestCreateDeleteById(t *testing.T) {
 	skipIfIsShort(t)
 
-	temporalService := createTemporalService(t)
+	temporalService := createTemporalNamespaceService(t)
 
 	testNamespace1 := &core.TemporalNamespaceParameters{
 		Name:        "Test1",
@@ -228,7 +215,7 @@ func TestCreateDeleteById(t *testing.T) {
 	assertNamespacesCount(t, temporalService, 0)
 }
 
-func assertNamespaceAreEqual(t *testing.T, temporalService TemporalService, actual *core.TemporalNamespaceObservation, expected *core.TemporalNamespaceParameters) {
+func assertNamespaceAreEqual(t *testing.T, temporalService NamespaceService, actual *core.TemporalNamespaceObservation, expected *core.TemporalNamespaceParameters) {
 	mappedActual, err := temporalService.MapObservationToNamespaceParameters(actual)
 	if err != nil {
 		t.Fatal(err)

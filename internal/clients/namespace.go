@@ -1,64 +1,27 @@
-package temporal
+package clients
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	ns "go.temporal.io/api/namespace/v1"
 	"go.temporal.io/api/operatorservice/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
-	"go.temporal.io/sdk/client"
 
 	core "github.com/denniskniep/provider-temporal/apis/core/v1alpha1"
 )
 
-type TemporalService interface {
+type NamespaceService interface {
 	DescribeNamespaceByName(ctx context.Context, name string) (*core.TemporalNamespaceObservation, error)
 
 	CreateNamespace(ctx context.Context, namespace *core.TemporalNamespaceParameters) error
 	UpdateNamespaceByName(ctx context.Context, namespace *core.TemporalNamespaceParameters) error
 	DeleteNamespaceByName(ctx context.Context, name string) error
-	
+
 	MapObservationToNamespaceParameters(ns *core.TemporalNamespaceObservation) (*core.TemporalNamespaceParameters, error)
-}
-
-type TemporalServiceImpl struct {
-	client client.Client
-	logger *slog.Logger
-}
-
-func NewTemporalService(configData []byte) (TemporalService, error) {
-	var conf = config{}
-	err := json.Unmarshal(configData, &conf)
-	if err != nil {
-		return nil, err
-	}
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: true,
-		Level:     slog.LevelDebug,
-	}))
-
-	clientOptions := client.Options{
-		HostPort: conf.HostPort,
-		Logger:   logger,
-	}
-
-	temporalClient, err := client.Dial(clientOptions)
-	if err != nil {
-		return nil, err
-	}
-
-	return &TemporalServiceImpl{
-		client: temporalClient,
-		logger: logger,
-	}, err
 }
 
 func (s *TemporalServiceImpl) MapObservationToNamespaceParameters(ns *core.TemporalNamespaceObservation) (*core.TemporalNamespaceParameters, error) {
