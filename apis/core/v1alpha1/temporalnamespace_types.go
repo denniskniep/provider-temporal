@@ -27,11 +27,38 @@ import (
 
 // TemporalNamespaceParameters are the configurable fields of a TemporalNamespace.
 type TemporalNamespaceParameters struct {
+
+	// +immutable
 	Name string `json:"name"`
 
-	Description string `json:"description"`
+	// +optional
+	Description string `json:"description,omitempty"`
 
-	OwnerEmail string `json:"ownerEmail"`
+	// +optional
+	OwnerEmail string `json:"ownerEmail,omitempty"`
+
+	// Workflow Execution retention.
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=30
+	WorkflowExecutionRetentionDays int `json:"workflowExecutionRetentionDays,omitempty"`
+
+	// +optional
+	Data map[string]string `json:"data,omitempty"`
+
+	// +kubebuilder:default=Disabled
+	// +kubebuilder:validation:Enum=Disabled;Enabled
+	HistoryArchivalState string `json:"historyArchivalState,omitempty"`
+
+	// +optional
+	HistoryArchivalUri string `json:"historyArchivalUri,omitempty"`
+
+	// +kubebuilder:default=Disabled
+	// +kubebuilder:validation:Enum=Disabled;Enabled
+	VisibilityArchivalState string `json:"visibilityArchivalState,omitempty"`
+
+	// +optional
+	VisibilityArchivalUri string `json:"visibilityArchivalUri,omitempty"`
 }
 
 // TemporalNamespaceObservation are the observable fields of a TemporalNamespace.
@@ -40,9 +67,21 @@ type TemporalNamespaceObservation struct {
 
 	Name string `json:"name"`
 
-	Description string `json:"description"`
+	Description string `json:"description,omitempty"`
 
-	OwnerEmail string `json:"ownerEmail"`
+	OwnerEmail string `json:"ownerEmail,omitempty"`
+
+	WorkflowExecutionRetentionDays int `json:"workflowExecutionRetentionDays,omitempty"`
+
+	Data map[string]string `json:"data,omitempty"`
+
+	HistoryArchivalState string `json:"historyArchivalState,omitempty"`
+
+	HistoryArchivalUri string `json:"historyArchivalUri,omitempty"`
+
+	VisibilityArchivalState string `json:"visibilityArchivalState,omitempty"`
+
+	VisibilityArchivalUri string `json:"visibilityArchivalUri,omitempty"`
 
 	State string `json:"state"`
 }

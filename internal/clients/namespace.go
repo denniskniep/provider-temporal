@@ -6,12 +6,17 @@ import (
 	"errors"
 	"time"
 
+	enums "go.temporal.io/api/enums/v1"
 	ns "go.temporal.io/api/namespace/v1"
 	"go.temporal.io/api/operatorservice/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/api/workflowservice/v1"
 
 	core "github.com/denniskniep/provider-temporal/apis/core/v1alpha1"
+)
+
+const (
+	day = time.Hour * 24
 )
 
 type NamespaceService interface {
@@ -40,13 +45,18 @@ func (s *TemporalServiceImpl) MapObservationToNamespaceParameters(ns *core.Tempo
 }
 
 func (s *TemporalServiceImpl) CreateNamespace(ctx context.Context, namespace *core.TemporalNamespaceParameters) error {
-	var defaultDuration = 30 * 24 * time.Hour
+	retentionDuration := time.Duration(namespace.WorkflowExecutionRetentionDays) * day
 
 	createrequest := &workflowservice.RegisterNamespaceRequest{
 		Namespace:                        namespace.Name,
 		Description:                      namespace.Description,
 		OwnerEmail:                       namespace.OwnerEmail,
-		WorkflowExecutionRetentionPeriod: &defaultDuration,
+		WorkflowExecutionRetentionPeriod: &retentionDuration,
+		Data:                             namespace.Data,
+		HistoryArchivalState:             enums.ArchivalState(enums.ArchivalState_value[namespace.HistoryArchivalState]),
+		HistoryArchivalUri:               namespace.HistoryArchivalUri,
+		VisibilityArchivalState:          enums.ArchivalState(enums.ArchivalState_value[namespace.VisibilityArchivalState]),
+		VisibilityArchivalUri:            namespace.VisibilityArchivalUri,
 	}
 
 	_, err := s.client.WorkflowService().RegisterNamespace(ctx, createrequest)
@@ -142,11 +152,17 @@ func (s *TemporalServiceImpl) DeleteNamespaceByName(ctx context.Context, name st
 
 func mapDescribeNamespaceResponse(response *workflowservice.DescribeNamespaceResponse) *core.TemporalNamespaceObservation {
 	return &core.TemporalNamespaceObservation{
-		Id:          response.NamespaceInfo.Id,
-		Name:        response.NamespaceInfo.Name,
-		Description: response.NamespaceInfo.Description,
-		OwnerEmail:  response.NamespaceInfo.OwnerEmail,
-		State:       response.NamespaceInfo.State.String(),
+		Id:                             response.NamespaceInfo.Id,
+		Name:                           response.NamespaceInfo.Name,
+		Description:                    response.NamespaceInfo.Description,
+		OwnerEmail:                     response.NamespaceInfo.OwnerEmail,
+		WorkflowExecutionRetentionDays: int(*response.Config.WorkflowExecutionRetentionTtl / day),
+		Data:                           response.NamespaceInfo.Data,
+		HistoryArchivalState:           response.Config.HistoryArchivalState.String(),
+		HistoryArchivalUri:             response.Config.HistoryArchivalUri,
+		VisibilityArchivalState:        response.Config.VisibilityArchivalState.String(),
+		VisibilityArchivalUri:          response.Config.VisibilityArchivalUri,
+		State:                          response.NamespaceInfo.State.String(),
 	}
 }
 

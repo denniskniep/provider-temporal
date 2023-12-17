@@ -68,16 +68,40 @@ spec:
                 description: TemporalNamespaceParameters are the configurable fields
                   of a TemporalNamespace.
                 properties:
+                  data:
+                    additionalProperties:
+                      type: string
+                    type: object
                   description:
+                    type: string
+                  historyArchivalState:
+                    default: Disabled
+                    enum:
+                    - Disabled
+                    - Enabled
+                    type: string
+                  historyArchivalUri:
                     type: string
                   name:
                     type: string
                   ownerEmail:
                     type: string
+                  visibilityArchivalState:
+                    default: Disabled
+                    enum:
+                    - Disabled
+                    - Enabled
+                    type: string
+                  visibilityArchivalUri:
+                    type: string
+                  workflowExecutionRetentionDays:
+                    default: 30
+                    description: Workflow Execution retention.
+                    maximum: 30
+                    minimum: 1
+                    type: integer
                 required:
-                - description
                 - name
-                - ownerEmail
                 type: object
               managementPolicies:
                 default:
@@ -284,7 +308,15 @@ spec:
                 description: TemporalNamespaceObservation are the observable fields
                   of a TemporalNamespace.
                 properties:
+                  data:
+                    additionalProperties:
+                      type: string
+                    type: object
                   description:
+                    type: string
+                  historyArchivalState:
+                    type: string
+                  historyArchivalUri:
                     type: string
                   id:
                     type: string
@@ -294,11 +326,15 @@ spec:
                     type: string
                   state:
                     type: string
+                  visibilityArchivalState:
+                    type: string
+                  visibilityArchivalUri:
+                    type: string
+                  workflowExecutionRetentionDays:
+                    type: integer
                 required:
-                - description
                 - id
                 - name
-                - ownerEmail
                 - state
                 type: object
               conditions:
