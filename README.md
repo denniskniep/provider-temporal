@@ -1,20 +1,78 @@
 # Temporal Provider
 
-Provider Temporal is a [Crossplane](https://www.crossplane.io/) provider. It was build based on the [Crossplane Template](https://github.com/crossplane/provider-template). It is used to manage and configure [Temporal](https://temporal.io/)
+Provider Temporal is a [Crossplane](https://www.crossplane.io/) provider. It was build based on the [Crossplane Template](https://github.com/crossplane/provider-template). It is used to manage and configure [Temporal](https://temporal.io/). It uses the [Temporal Go SDK](https://github.com/temporalio/sdk-go)
 
-https://github.com/crossplane/crossplane/blob/master/contributing/guide-provider-development.md
+# Using 
+Provider Credentials:
+```
+{
+  "HostPort": "temporal:7233"
+}
+```
 
-# temporal
+Example:
+```
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-temporal
+spec:
+  package: <packagepath>:<packagelabel>
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: provider-temporal-config-creds
+  namespace: crossplane-system
+type: Opaque
+stringData:
+  credentials: |
+    {
+      "HostPort": "temporal:7233"
+    }
+---
+apiVersion: temporal.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: provider-temporal-config
+spec: 
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: provider-temporal-config-creds
+      key: credentials  
+```
 
-`provider-temporal` is a minimal [Crossplane](https://crossplane.io/) Provider
-that is meant to be used to configure [Temporal](https://temporal.io/). It uses the [Temporal Go SDK](https://github.com/temporalio/sdk-go)
+# Covered Managed Resources
+Currently covered Managed Resources
+- [TemporalNamespace](#temporalnamespace)
 
+## TemporalNamespace 
+A Namespace is a unit of isolation within the Temporal Platform
 
-Covered Resources
-- Namespace
+[temporal docs](https://docs.temporal.io/namespaces) 
+
+[temporal cli](https://docs.temporal.io/cli/operator#namespace)
+
+Example:
+```
+apiVersion: core.temporal.crossplane.io/v1alpha1
+kind: TemporalNamespace
+metadata:
+  name: ns1
+spec:
+  forProvider:
+    name: "Test 1"
+    description: "Desc 1"
+    ownerEmail: "Test@test.local"
+  providerConfigRef:
+    name: provider-temporal-config
+```
 
 ## Developing
-
 1. Add new type by running the following command:
 ```shell
   export provider_name=temporal
