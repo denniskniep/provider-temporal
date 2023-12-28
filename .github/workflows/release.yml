@@ -177,7 +177,11 @@ jobs:
 
   publish-artifacts:
     runs-on: ubuntu-22.04
-    needs: detect-noop, unit-tests, check-diff, lint
+    needs: 
+      - detect-noop
+      - unit-tests
+      - check-diff
+      - lint
     if: needs.detect-noop.outputs.noop != 'true'
 
     steps:
