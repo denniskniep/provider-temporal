@@ -6,7 +6,7 @@ import (
 
 func createTemporalService(t *testing.T) *TemporalServiceImpl {
 	jsonConfig := `{
-		"HostPort": "temporal.k8s.localhost:7233"
+		"HostPort": "localhost:7233"
 	}`
 
 	temporalService := createTemporalServiceWithConfig(t, jsonConfig)

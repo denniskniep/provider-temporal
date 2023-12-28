@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  temporal:
+    image: temporalio/auto-setup:1.22.3.0 
+    container_name: temporal-for-tests
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql 
+    ports:
+      - 7233:7233
+    depends_on:
+      - postgresql
+
+  postgresql:
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal    
+    ports:
+      - 5432:5432
+    volumes:
+      - /var/lib/postgresql/data
