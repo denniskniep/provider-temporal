@@ -3,6 +3,11 @@
 Provider Temporal is a [Crossplane](https://www.crossplane.io/) provider. It was build based on the [Crossplane Template](https://github.com/crossplane/provider-template). It is used to manage and configure [Temporal](https://temporal.io/). It uses the [Temporal Go SDK](https://github.com/temporalio/sdk-go)
 
 # How to use 
+Repository and package:
+```
+xpkg.upbound.io/denniskniep/provider-temporal:<version>
+```
+
 Provider Credentials:
 ```
 {
@@ -17,7 +22,7 @@ kind: Provider
 metadata:
   name: provider-temporal
 spec:
-  package: <packagepath>:<packagelabel>
+  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.1.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
 ---
