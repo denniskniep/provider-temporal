@@ -47,16 +47,21 @@ func (s *TemporalServiceImpl) MapObservationToNamespaceParameters(ns *core.Tempo
 func (s *TemporalServiceImpl) CreateNamespace(ctx context.Context, namespace *core.TemporalNamespaceParameters) error {
 	retentionDuration := time.Duration(namespace.WorkflowExecutionRetentionDays) * day
 
+	var data map[string]string
+	if namespace.Data != nil {
+		data = *namespace.Data
+	}
+
 	createrequest := &workflowservice.RegisterNamespaceRequest{
 		Namespace:                        namespace.Name,
-		Description:                      namespace.Description,
-		OwnerEmail:                       namespace.OwnerEmail,
+		Description:                      resolvePtrOrDefault(namespace.Description),
+		OwnerEmail:                       resolvePtrOrDefault(namespace.OwnerEmail),
 		WorkflowExecutionRetentionPeriod: &retentionDuration,
-		Data:                             namespace.Data,
+		Data:                             data,
 		HistoryArchivalState:             enums.ArchivalState(enums.ArchivalState_value[namespace.HistoryArchivalState]),
-		HistoryArchivalUri:               namespace.HistoryArchivalUri,
+		HistoryArchivalUri:               resolvePtrOrDefault(namespace.HistoryArchivalUri),
 		VisibilityArchivalState:          enums.ArchivalState(enums.ArchivalState_value[namespace.VisibilityArchivalState]),
-		VisibilityArchivalUri:            namespace.VisibilityArchivalUri,
+		VisibilityArchivalUri:            resolvePtrOrDefault(namespace.VisibilityArchivalUri),
 	}
 
 	_, err := s.client.WorkflowService().RegisterNamespace(ctx, createrequest)
@@ -151,17 +156,22 @@ func (s *TemporalServiceImpl) DeleteNamespaceByName(ctx context.Context, name st
 }
 
 func mapDescribeNamespaceResponse(response *workflowservice.DescribeNamespaceResponse) *core.TemporalNamespaceObservation {
+	var data *map[string]string = nil
+	if len(response.NamespaceInfo.Data) > 0 {
+		data = &response.NamespaceInfo.Data
+	}
+
 	return &core.TemporalNamespaceObservation{
 		Id:                             response.NamespaceInfo.Id,
 		Name:                           response.NamespaceInfo.Name,
-		Description:                    response.NamespaceInfo.Description,
-		OwnerEmail:                     response.NamespaceInfo.OwnerEmail,
+		Description:                    createPtrOrNilIfDefault(response.NamespaceInfo.Description),
+		OwnerEmail:                     createPtrOrNilIfDefault(response.NamespaceInfo.OwnerEmail),
 		WorkflowExecutionRetentionDays: int(*response.Config.WorkflowExecutionRetentionTtl / day),
-		Data:                           response.NamespaceInfo.Data,
+		Data:                           data,
 		HistoryArchivalState:           response.Config.HistoryArchivalState.String(),
-		HistoryArchivalUri:             response.Config.HistoryArchivalUri,
+		HistoryArchivalUri:             createPtrOrNilIfDefault(response.Config.HistoryArchivalUri),
 		VisibilityArchivalState:        response.Config.VisibilityArchivalState.String(),
-		VisibilityArchivalUri:          response.Config.VisibilityArchivalUri,
+		VisibilityArchivalUri:          createPtrOrNilIfDefault(response.Config.VisibilityArchivalUri),
 		State:                          response.NamespaceInfo.State.String(),
 	}
 }
@@ -189,11 +199,27 @@ func (s *TemporalServiceImpl) ListAllNamespaces(ctx context.Context) ([]*core.Te
 }
 
 func (s *TemporalServiceImpl) UpdateNamespaceByName(ctx context.Context, namespace *core.TemporalNamespaceParameters) error {
+
+	retentionTtl := time.Duration(namespace.WorkflowExecutionRetentionDays * int(day))
+
+	var data map[string]string
+	if namespace.Data != nil {
+		data = *namespace.Data
+	}
+
 	updaterequest := &workflowservice.UpdateNamespaceRequest{
 		Namespace: namespace.Name,
 		UpdateInfo: &ns.UpdateNamespaceInfo{
-			Description: namespace.Description,
-			OwnerEmail:  namespace.OwnerEmail,
+			Description: resolvePtrOrDefault(namespace.Description),
+			OwnerEmail:  resolvePtrOrDefault(namespace.OwnerEmail),
+			Data:        data,
+		},
+		Config: &ns.NamespaceConfig{
+			HistoryArchivalState:          enums.ArchivalState(enums.ArchivalState_value[namespace.HistoryArchivalState]),
+			HistoryArchivalUri:            resolvePtrOrDefault(namespace.HistoryArchivalUri),
+			VisibilityArchivalState:       enums.ArchivalState(enums.ArchivalState_value[namespace.VisibilityArchivalState]),
+			VisibilityArchivalUri:         resolvePtrOrDefault(namespace.VisibilityArchivalUri),
+			WorkflowExecutionRetentionTtl: &retentionTtl,
 		},
 	}
 
@@ -204,4 +230,18 @@ func (s *TemporalServiceImpl) UpdateNamespaceByName(ctx context.Context, namespa
 	}
 
 	return nil
+}
+
+func resolvePtrOrDefault(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+	return *ptr
+}
+
+func createPtrOrNilIfDefault(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }

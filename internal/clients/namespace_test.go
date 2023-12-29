@@ -23,19 +23,30 @@ func createTemporalNamespaceService(t *testing.T) *TemporalServiceImpl {
 	return temporalService
 }
 
-func TestDeleteTwice(t *testing.T) {
-	skipIfIsShort(t)
-
-	temporalService := createTemporalNamespaceService(t)
-
-	testNamespace := &core.TemporalNamespaceParameters{
+func createDefaultNamespaceParameters() *core.TemporalNamespaceParameters {
+	desc := "Desc1"
+	mail := "Test1@mail.local"
+	return &core.TemporalNamespaceParameters{
 		Name:                           "Test1",
-		Description:                    "Desc1",
-		OwnerEmail:                     "Test1@mail.local",
+		Description:                    &desc,
+		OwnerEmail:                     &mail,
 		WorkflowExecutionRetentionDays: 30,
 		HistoryArchivalState:           "Disabled",
 		VisibilityArchivalState:        "Disabled",
 	}
+}
+
+func createDefaultNamespaceParametersWithName(name string) *core.TemporalNamespaceParameters {
+	ns := createDefaultNamespaceParameters()
+	ns.Name = name
+	return ns
+}
+
+func TestDeleteTwice(t *testing.T) {
+	skipIfIsShort(t)
+
+	temporalService := createTemporalNamespaceService(t)
+	testNamespace := createDefaultNamespaceParameters()
 
 	err := temporalService.CreateNamespace(context.Background(), testNamespace)
 	if err != nil {
@@ -74,15 +85,7 @@ func TestCreate(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalNamespaceService(t)
-
-	testNamespace := &core.TemporalNamespaceParameters{
-		Name:                           "Test1",
-		Description:                    "Desc1",
-		OwnerEmail:                     "Test1@mail.local",
-		WorkflowExecutionRetentionDays: 30,
-		HistoryArchivalState:           "Disabled",
-		VisibilityArchivalState:        "Disabled",
-	}
+	testNamespace := createDefaultNamespaceParameters()
 
 	err := temporalService.CreateNamespace(context.Background(), testNamespace)
 	if err != nil {
@@ -102,15 +105,7 @@ func TestCreateUpdate(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalNamespaceService(t)
-
-	testNamespace1 := &core.TemporalNamespaceParameters{
-		Name:                           "Test1",
-		Description:                    "Desc1",
-		OwnerEmail:                     "Test1@mail.local",
-		WorkflowExecutionRetentionDays: 30,
-		HistoryArchivalState:           "Disabled",
-		VisibilityArchivalState:        "Disabled",
-	}
+	testNamespace1 := createDefaultNamespaceParameters()
 	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {
 		t.Fatal(err1)
@@ -124,14 +119,12 @@ func TestCreateUpdate(t *testing.T) {
 	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
 	assertNamespacesCount(t, temporalService, 1)
 
-	testNamespace2 := &core.TemporalNamespaceParameters{
-		Name:                           "Test2",
-		Description:                    "Desc2",
-		OwnerEmail:                     "Test2@mail.local",
-		WorkflowExecutionRetentionDays: 30,
-		HistoryArchivalState:           "Disabled",
-		VisibilityArchivalState:        "Disabled",
-	}
+	desc2 := "Desc2"
+	mail2 := "Test2@mail.local"
+	testNamespace2 := createDefaultNamespaceParametersWithName("Test2")
+	testNamespace2.Description = &desc2
+	testNamespace2.OwnerEmail = &mail2
+
 	err2 := temporalService.CreateNamespace(context.Background(), testNamespace2)
 	if err2 != nil {
 		t.Fatal(err2)
@@ -146,14 +139,12 @@ func TestCreateUpdate(t *testing.T) {
 	assertNamespaceAreEqual(t, temporalService, created2, testNamespace2)
 	assertNamespacesCount(t, temporalService, 2)
 
-	testNamespaceUpdate := &core.TemporalNamespaceParameters{
-		Name:                           "Test2",
-		Description:                    "Updated2",
-		OwnerEmail:                     "Updated2@mail.local",
-		WorkflowExecutionRetentionDays: 30,
-		HistoryArchivalState:           "Disabled",
-		VisibilityArchivalState:        "Disabled",
-	}
+	updatedDesc := "Updated2"
+	updatedMail := "Updated2@mail.local"
+	testNamespaceUpdate := createDefaultNamespaceParametersWithName("Test2")
+	testNamespace2.Description = &updatedDesc
+	testNamespace2.OwnerEmail = &updatedMail
+
 	err := temporalService.UpdateNamespaceByName(context.Background(), testNamespaceUpdate)
 	if err != nil {
 		t.Fatal(err)
@@ -173,15 +164,7 @@ func TestCreateDeleteByName(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalNamespaceService(t)
-
-	testNamespace1 := &core.TemporalNamespaceParameters{
-		Name:                           "Test1",
-		Description:                    "Desc1",
-		OwnerEmail:                     "Test1@mail.local",
-		WorkflowExecutionRetentionDays: 30,
-		HistoryArchivalState:           "Disabled",
-		VisibilityArchivalState:        "Disabled",
-	}
+	testNamespace1 := createDefaultNamespaceParameters()
 	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {
 		t.Fatal(err1)
@@ -204,15 +187,7 @@ func TestCreateDeleteById(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalNamespaceService(t)
-
-	testNamespace1 := &core.TemporalNamespaceParameters{
-		Name:                           "Test1",
-		Description:                    "Desc1",
-		OwnerEmail:                     "Test1@mail.local",
-		WorkflowExecutionRetentionDays: 30,
-		HistoryArchivalState:           "Disabled",
-		VisibilityArchivalState:        "Disabled",
-	}
+	testNamespace1 := createDefaultNamespaceParameters()
 
 	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {

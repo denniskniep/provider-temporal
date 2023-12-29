@@ -32,10 +32,10 @@ type TemporalNamespaceParameters struct {
 	Name string `json:"name"`
 
 	// +optional
-	Description string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty"`
 
 	// +optional
-	OwnerEmail string `json:"ownerEmail,omitempty"`
+	OwnerEmail *string `json:"ownerEmail,omitempty"`
 
 	// Workflow Execution retention.
 	// +kubebuilder:default=30
@@ -44,21 +44,21 @@ type TemporalNamespaceParameters struct {
 	WorkflowExecutionRetentionDays int `json:"workflowExecutionRetentionDays,omitempty"`
 
 	// +optional
-	Data map[string]string `json:"data,omitempty"`
+	Data *map[string]string `json:"data,omitempty"`
 
 	// +kubebuilder:default=Disabled
 	// +kubebuilder:validation:Enum=Disabled;Enabled
 	HistoryArchivalState string `json:"historyArchivalState,omitempty"`
 
 	// +optional
-	HistoryArchivalUri string `json:"historyArchivalUri,omitempty"`
+	HistoryArchivalUri *string `json:"historyArchivalUri,omitempty"`
 
 	// +kubebuilder:default=Disabled
 	// +kubebuilder:validation:Enum=Disabled;Enabled
 	VisibilityArchivalState string `json:"visibilityArchivalState,omitempty"`
 
 	// +optional
-	VisibilityArchivalUri string `json:"visibilityArchivalUri,omitempty"`
+	VisibilityArchivalUri *string `json:"visibilityArchivalUri,omitempty"`
 }
 
 // TemporalNamespaceObservation are the observable fields of a TemporalNamespace.
@@ -67,21 +67,21 @@ type TemporalNamespaceObservation struct {
 
 	Name string `json:"name"`
 
-	Description string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty"`
 
-	OwnerEmail string `json:"ownerEmail,omitempty"`
+	OwnerEmail *string `json:"ownerEmail,omitempty"`
 
 	WorkflowExecutionRetentionDays int `json:"workflowExecutionRetentionDays,omitempty"`
 
-	Data map[string]string `json:"data,omitempty"`
+	Data *map[string]string `json:"data,omitempty"`
 
 	HistoryArchivalState string `json:"historyArchivalState,omitempty"`
 
-	HistoryArchivalUri string `json:"historyArchivalUri,omitempty"`
+	HistoryArchivalUri *string `json:"historyArchivalUri,omitempty"`
 
 	VisibilityArchivalState string `json:"visibilityArchivalState,omitempty"`
 
-	VisibilityArchivalUri string `json:"visibilityArchivalUri,omitempty"`
+	VisibilityArchivalUri *string `json:"visibilityArchivalUri,omitempty"`
 
 	State string `json:"state"`
 }
