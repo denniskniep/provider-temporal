@@ -100,3 +100,9 @@ guide may also be of use.
 
 [CONTRIBUTING.md]: https://github.com/crossplane/crossplane/blob/master/CONTRIBUTING.md
 [provider-dev]: https://github.com/crossplane/crossplane/blob/master/contributing/guide-provider-development.md
+
+## Tests
+Start temporal environment for tests
+```
+sudo docker-compose -f tests/docker-compose.yaml up 
+```

@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-    - "release-v*.*.*" # Run workflow on version tags, e.g. release-v1.0.0.
+    - "v*.*.*" # Run workflow on version tags, e.g. release-v1.0.0.
   pull_request: {}
   workflow_dispatch: {}
 
@@ -252,17 +252,29 @@ jobs:
           name: output
           path: _output/**
 
+      - name: Publish Artifacts
+        run: make publish BRANCH_NAME=release-${GITHUB_REF##*/}
+
+      - name: Rename xpkg linux_amd64
+        run: cd _output/xpkg/linux_amd64/ && ls | xargs -I {} mv {} linux_amd64-{} 
+
+      - name: Rename xpkg linux_arm64
+        run: cd _output/xpkg/linux_arm64/ && ls | xargs -I {} mv {} linux_arm64-{} 
+
+      - name: Rename bin linux_amd64
+        run: cd _output/bin/linux_amd64/ && ls | xargs -I {} mv {} linux_amd64-{} 
+
+      - name: Rename bin linux_arm64
+        run: cd _output/bin/linux_arm64/ && ls | xargs -I {} mv {} linux_arm64-{} 
+
       - name: Create Github release
         uses: softprops/action-gh-release@v1
         with:
           draft: true
           generate_release_notes: true
           files: |
-            _output/xpkg/linux_amd64/**
-            _output/bin/linux_amd64/** 
+            _output/xpkg/**
+            _output/bin/** 
           body: |
             **This is a Github draft release.**
             Once ready please remove this and publish the release.
-
-      - name: Publish Artifacts
-        run: make publish BRANCH_NAME=${GITHUB_REF##*/}

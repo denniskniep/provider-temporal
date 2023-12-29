@@ -244,7 +244,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.New(errNotTemporalNamespace)
 	}
 
-	err := c.service.DeleteNamespaceByName(ctx, cr.Spec.ForProvider.Name)
+	_, err := c.service.DeleteNamespaceByName(ctx, cr.Spec.ForProvider.Name)
 
 	if err != nil {
 		return errors.Wrap(err, errDelete)

@@ -15,19 +15,18 @@ import (
 func createTemporalNamespaceService(t *testing.T) *TemporalServiceImpl {
 	temporalService := createTemporalService(t)
 
-	err := temporalService.DeleteAllNamespaces(context.Background())
+	_, err := temporalService.DeleteAllNamespaces(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertNamespacesCount(t, temporalService, 0)
 	return temporalService
 }
 
-func createDefaultNamespaceParameters() *core.TemporalNamespaceParameters {
+func createDefaultNamespaceParametersWithName(name string) *core.TemporalNamespaceParameters {
 	desc := "Desc1"
 	mail := "Test1@mail.local"
 	return &core.TemporalNamespaceParameters{
-		Name:                           "Test1",
+		Name:                           name,
 		Description:                    &desc,
 		OwnerEmail:                     &mail,
 		WorkflowExecutionRetentionDays: 30,
@@ -36,33 +35,29 @@ func createDefaultNamespaceParameters() *core.TemporalNamespaceParameters {
 	}
 }
 
-func createDefaultNamespaceParametersWithName(name string) *core.TemporalNamespaceParameters {
-	ns := createDefaultNamespaceParameters()
-	ns.Name = name
-	return ns
-}
-
 func TestDeleteTwice(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalNamespaceService(t)
-	testNamespace := createDefaultNamespaceParameters()
+	testNamespace := createDefaultNamespaceParametersWithName("Test006")
 
 	err := temporalService.CreateNamespace(context.Background(), testNamespace)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = temporalService.DeleteNamespaceByName(context.Background(), testNamespace.Name)
+	deleted1, err1 := temporalService.DeleteNamespaceByName(context.Background(), testNamespace.Name)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(err1)
 	}
-
-	err = temporalService.DeleteNamespaceByName(context.Background(), testNamespace.Name)
-	if err != nil {
-		t.Fatal(err)
+	if deleted1 == nil {
+		t.Fatal("Namespace " + testNamespace.Name + " not deleted")
 	}
-
+	t.Logf("Deleted: %s", *deleted1)
+	_, err2 := temporalService.DeleteNamespaceByName(context.Background(), testNamespace.Name)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
 	assertNamespacesCount(t, temporalService, 0)
 }
 
@@ -85,7 +80,7 @@ func TestCreate(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalNamespaceService(t)
-	testNamespace := createDefaultNamespaceParameters()
+	testNamespace := createDefaultNamespaceParametersWithName("Test007")
 
 	err := temporalService.CreateNamespace(context.Background(), testNamespace)
 	if err != nil {
@@ -99,13 +94,20 @@ func TestCreate(t *testing.T) {
 
 	assertNamespaceAreEqual(t, temporalService, created, testNamespace)
 	assertNamespacesCount(t, temporalService, 1)
+
+	_, err = temporalService.DeleteNamespaceByName(context.Background(), testNamespace.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertNamespacesCount(t, temporalService, 0)
 }
 
 func TestCreateUpdate(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalNamespaceService(t)
-	testNamespace1 := createDefaultNamespaceParameters()
+	testNamespace1 := createDefaultNamespaceParametersWithName("Test001")
 	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {
 		t.Fatal(err1)
@@ -121,7 +123,7 @@ func TestCreateUpdate(t *testing.T) {
 
 	desc2 := "Desc2"
 	mail2 := "Test2@mail.local"
-	testNamespace2 := createDefaultNamespaceParametersWithName("Test2")
+	testNamespace2 := createDefaultNamespaceParametersWithName("Test002")
 	testNamespace2.Description = &desc2
 	testNamespace2.OwnerEmail = &mail2
 
@@ -141,7 +143,7 @@ func TestCreateUpdate(t *testing.T) {
 
 	updatedDesc := "Updated2"
 	updatedMail := "Updated2@mail.local"
-	testNamespaceUpdate := createDefaultNamespaceParametersWithName("Test2")
+	testNamespaceUpdate := createDefaultNamespaceParametersWithName("Test002")
 	testNamespace2.Description = &updatedDesc
 	testNamespace2.OwnerEmail = &updatedMail
 
@@ -158,13 +160,25 @@ func TestCreateUpdate(t *testing.T) {
 	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
 	assertNamespaceAreEqual(t, temporalService, updated, testNamespaceUpdate)
 	assertNamespacesCount(t, temporalService, 2)
+
+	_, err = temporalService.DeleteNamespaceByName(context.Background(), testNamespace1.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = temporalService.DeleteNamespaceByName(context.Background(), testNamespaceUpdate.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertNamespacesCount(t, temporalService, 0)
 }
 
 func TestCreateDeleteByName(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalNamespaceService(t)
-	testNamespace1 := createDefaultNamespaceParameters()
+	testNamespace1 := createDefaultNamespaceParametersWithName("Test003")
 	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {
 		t.Fatal(err1)
@@ -178,16 +192,22 @@ func TestCreateDeleteByName(t *testing.T) {
 	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
 	assertNamespacesCount(t, temporalService, 1)
 
-	temporalService.DeleteNamespaceByName(context.Background(), created1.Name)
-
+	deleted, err1 := temporalService.DeleteNamespaceByName(context.Background(), created1.Name)
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+	if deleted == nil {
+		t.Fatal("Namespace " + created1.Name + " not deleted")
+	}
+	t.Logf("Deleted: %s", *deleted)
 	assertNamespacesCount(t, temporalService, 0)
 }
 
-func TestCreateDeleteById(t *testing.T) {
+func TestCreateDelete(t *testing.T) {
 	skipIfIsShort(t)
 
 	temporalService := createTemporalNamespaceService(t)
-	testNamespace1 := createDefaultNamespaceParameters()
+	testNamespace1 := createDefaultNamespaceParametersWithName("Test004")
 
 	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {
@@ -202,8 +222,15 @@ func TestCreateDeleteById(t *testing.T) {
 	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
 	assertNamespacesCount(t, temporalService, 1)
 
-	temporalService.DeleteNamespaceByName(context.Background(), created1.Name)
+	deleted, err1 := temporalService.DeleteNamespaceByName(context.Background(), created1.Name)
+	if err1 != nil {
+		t.Fatal(err1)
+	}
 
+	if deleted == nil {
+		t.Fatal("Namespace " + created1.Name + " not deleted")
+	}
+	t.Logf("Deleted: %s", *deleted)
 	assertNamespacesCount(t, temporalService, 0)
 }
 
@@ -219,13 +246,17 @@ func assertNamespaceAreEqual(t *testing.T, temporalService NamespaceService, act
 }
 
 func assertNamespacesCount(t *testing.T, temporalService *TemporalServiceImpl, expectedCount int) {
+	t.Helper()
 	namespaces, err := temporalService.ListAllNamespaces(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(namespaces) != expectedCount {
 		namespacesAsJson, err := json.Marshal(namespaces)
-		t.Error(err)
+		if err != nil {
+			t.Error(err)
+		}
+
 		t.Fatal("Expected Namespace Count is " + strconv.Itoa(expectedCount) + ", but was " + strconv.Itoa(len(namespaces)) + "\n" + string(namespacesAsJson))
 	}
 }

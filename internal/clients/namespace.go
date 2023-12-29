@@ -24,7 +24,7 @@ type NamespaceService interface {
 
 	CreateNamespace(ctx context.Context, namespace *core.TemporalNamespaceParameters) error
 	UpdateNamespaceByName(ctx context.Context, namespace *core.TemporalNamespaceParameters) error
-	DeleteNamespaceByName(ctx context.Context, name string) error
+	DeleteNamespaceByName(ctx context.Context, name string) (*string, error)
 
 	MapObservationToNamespaceParameters(ns *core.TemporalNamespaceObservation) (*core.TemporalNamespaceParameters, error)
 }
@@ -79,21 +79,22 @@ func (s *TemporalServiceImpl) CreateNamespace(ctx context.Context, namespace *co
 	return nil
 }
 
-func (s *TemporalServiceImpl) DeleteAllNamespaces(ctx context.Context) error {
+func (s *TemporalServiceImpl) DeleteAllNamespaces(ctx context.Context) ([]*string, error) {
 	namespaces, err := s.ListAllNamespaces(ctx)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	deletedNamespaces := make([]*string, 0, len(namespaces))
 	for _, namespace := range namespaces {
-		err := s.DeleteNamespaceByName(ctx, namespace.Name)
+		deletedNamespace, err := s.DeleteNamespaceByName(ctx, namespace.Name)
 		if err != nil {
-			return err
+			return deletedNamespaces, err
 		}
+		deletedNamespaces = append(deletedNamespaces, deletedNamespace)
 	}
 
-	return nil
+	return deletedNamespaces, nil
 }
 
 func (s *TemporalServiceImpl) DescribeNamespaceByName(ctx context.Context, name string) (*core.TemporalNamespaceObservation, error) {
@@ -120,7 +121,7 @@ func (s *TemporalServiceImpl) DescribeNamespaceByName(ctx context.Context, name 
 	return mapDescribeNamespaceResponse(response), nil
 }
 
-func (s *TemporalServiceImpl) DeleteNamespaceByName(ctx context.Context, name string) error {
+func (s *TemporalServiceImpl) DeleteNamespaceByName(ctx context.Context, name string) (*string, error) {
 	deleterequest := &operatorservice.DeleteNamespaceRequest{
 		Namespace: name,
 	}
@@ -132,27 +133,28 @@ func (s *TemporalServiceImpl) DeleteNamespaceByName(ctx context.Context, name st
 		var namespaceInvalidState *serviceerror.NamespaceInvalidState
 		if errors.As(err, &namespaceInvalidState) {
 			s.logger.Debug("Namespace '" + namespace.Name + "' invalid state. " + err.Error())
-			return nil
+			return &namespace.Name, nil
 		}
 
 		var namespaceNotFound *serviceerror.NamespaceNotFound
 		if errors.As(err, &namespaceNotFound) {
 			s.logger.Debug("Namespace '" + namespace.Name + "' not found. " + err.Error())
-			return nil
+			return &namespace.Name, nil
 		}
 
 		if err != nil {
-			return err
+			return &namespace.Name, err
 		}
 
 		s.logger.Debug("Namespace '" + namespace.Name + "' deleted. Temporary namespace name that is used during reclaim resources step: '" + response.DeletedNamespace + "' ")
+		return &namespace.Name, nil
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return nil, nil
 }
 
 func mapDescribeNamespaceResponse(response *workflowservice.DescribeNamespaceResponse) *core.TemporalNamespaceObservation {
