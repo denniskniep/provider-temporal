@@ -114,7 +114,7 @@ spec:
   providerConfigRef:
     name: provider-temporal-config
 ```
-
+# Contribute
 ## Developing
 1. Add new type by running the following command:
 ```shell
