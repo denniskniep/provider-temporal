@@ -50,6 +50,36 @@ spec:
       name: provider-temporal-config-creds
       key: credentials  
 ```
+# Troubleshooting
+Create a DeploymentRuntimeConfig and set the arg `--debug` on the package-runtime container:
+
+```
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: debug-config
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          containers:
+            - name: package-runtime
+              args:
+                - --debug
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-temporal
+spec:
+  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.1.0
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  runtimeConfigRef:
+    name: debug-config
+```
 
 # Covered Managed Resources
 Currently covered Managed Resources
