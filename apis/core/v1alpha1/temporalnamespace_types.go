@@ -28,7 +28,9 @@ import (
 // TemporalNamespaceParameters are the configurable fields of a TemporalNamespace.
 type TemporalNamespaceParameters struct {
 
-	// +immutable
+	// Name of the Namespace (immutable)
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Name is immutable"
 	Name string `json:"name"`
 
 	// +optional

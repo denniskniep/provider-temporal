@@ -6,7 +6,7 @@ import (
 
 func createTemporalService(t *testing.T) *TemporalServiceImpl {
 	jsonConfig := `{
-		"HostPort": "localhost:7233"
+		"HostPort": "localhost:7222"
 	}`
 
 	temporalService := createTemporalServiceWithConfig(t, jsonConfig)
@@ -19,10 +19,5 @@ func createTemporalServiceWithConfig(t *testing.T, jsonConfig string) *TemporalS
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	impl, ok := service.(*TemporalServiceImpl)
-	if !ok {
-		t.Fatal("Not of type TemporalServiceImpl")
-	}
-	return impl
+	return service
 }

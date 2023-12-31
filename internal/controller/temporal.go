@@ -21,6 +21,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/denniskniep/provider-temporal/internal/controller/config"
+	"github.com/denniskniep/provider-temporal/internal/controller/searchattribute"
 	"github.com/denniskniep/provider-temporal/internal/controller/temporalnamespace"
 )
 
@@ -30,6 +31,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
 		temporalnamespace.Setup,
+		searchattribute.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

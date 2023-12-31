@@ -10,7 +10,7 @@ services:
       - POSTGRES_PWD=temporal
       - POSTGRES_SEEDS=postgresql 
     ports:
-      - 7233:7233
+      - 7222:7233
     depends_on:
       - postgresql
 

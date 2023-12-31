@@ -4,7 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.12.1
-  name: temporalnamespaces.core.temporal.crossplane.io
+  name: searchattributes.core.temporal.crossplane.io
 spec:
   group: core.temporal.crossplane.io
   names:
@@ -12,10 +12,10 @@ spec:
     - crossplane
     - managed
     - temporal
-    kind: TemporalNamespace
-    listKind: TemporalNamespaceList
-    plural: temporalnamespaces
-    singular: temporalnamespace
+    kind: SearchAttribute
+    listKind: SearchAttributeList
+    plural: searchattributes
+    singular: searchattribute
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -34,7 +34,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A TemporalNamespace is an API type.
+        description: A SearchAttribute is an example API type.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -49,7 +49,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: A TemporalNamespaceSpec defines the desired state of a TemporalNamespace.
+            description: A SearchAttributeSpec defines the desired state of a SearchAttribute.
             properties:
               deletionPolicy:
                 default: Delete
@@ -65,48 +65,123 @@ spec:
                 - Delete
                 type: string
               forProvider:
-                description: TemporalNamespaceParameters are the configurable fields
-                  of a TemporalNamespace.
+                description: SearchAttributeParameters are the configurable fields
+                  of a SearchAttribute.
                 properties:
-                  data:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  description:
-                    type: string
-                  historyArchivalState:
-                    default: Disabled
-                    enum:
-                    - Disabled
-                    - Enabled
-                    type: string
-                  historyArchivalUri:
-                    type: string
                   name:
-                    description: Name of the Namespace (immutable)
+                    description: Name of the SearchAttribute (immutable)
                     type: string
                     x-kubernetes-validations:
                     - message: Name is immutable
                       rule: self == oldSelf
-                  ownerEmail:
+                  temporalNamespaceName:
+                    description: Namespace where search-attribute will be created
+                      (immutable) At least one of temporalNamespaceName, temporalNamespaceNameRef
+                      or temporalNamespaceNameSelector is required.
                     type: string
-                  visibilityArchivalState:
-                    default: Disabled
+                    x-kubernetes-validations:
+                    - message: TemporalNamespaceName is immutable
+                      rule: self == oldSelf
+                  temporalNamespaceNameRef:
+                    description: Namespace reference to retrieve the namespace name,
+                      where search-attribute will be created At least one of temporalNamespaceName,
+                      temporalNamespaceNameRef or temporalNamespaceNameSelector is
+                      required.
+                    properties:
+                      name:
+                        description: Name of the referenced object.
+                        type: string
+                      policy:
+                        description: Policies for referencing.
+                        properties:
+                          resolution:
+                            default: Required
+                            description: Resolution specifies whether resolution of
+                              this reference is required. The default is 'Required',
+                              which means the reconcile will fail if the reference
+                              cannot be resolved. 'Optional' means this reference
+                              will be a no-op if it cannot be resolved.
+                            enum:
+                            - Required
+                            - Optional
+                            type: string
+                          resolve:
+                            description: Resolve specifies when this reference should
+                              be resolved. The default is 'IfNotPresent', which will
+                              attempt to resolve the reference only when the corresponding
+                              field is not present. Use 'Always' to resolve the reference
+                              on every reconcile.
+                            enum:
+                            - Always
+                            - IfNotPresent
+                            type: string
+                        type: object
+                    required:
+                    - name
+                    type: object
+                  temporalNamespaceNameSelector:
+                    description: TemporalNamespaceNameSelector selects a reference
+                      to a TemporalNamespace and retrieves its name At least one of
+                      temporalNamespaceName, temporalNamespaceNameRef or temporalNamespaceNameSelector
+                      is required.
+                    properties:
+                      matchControllerRef:
+                        description: MatchControllerRef ensures an object with the
+                          same controller reference as the selecting object is selected.
+                        type: boolean
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: MatchLabels ensures an object with matching labels
+                          is selected.
+                        type: object
+                      policy:
+                        description: Policies for selection.
+                        properties:
+                          resolution:
+                            default: Required
+                            description: Resolution specifies whether resolution of
+                              this reference is required. The default is 'Required',
+                              which means the reconcile will fail if the reference
+                              cannot be resolved. 'Optional' means this reference
+                              will be a no-op if it cannot be resolved.
+                            enum:
+                            - Required
+                            - Optional
+                            type: string
+                          resolve:
+                            description: Resolve specifies when this reference should
+                              be resolved. The default is 'IfNotPresent', which will
+                              attempt to resolve the reference only when the corresponding
+                              field is not present. Use 'Always' to resolve the reference
+                              on every reconcile.
+                            enum:
+                            - Always
+                            - IfNotPresent
+                            type: string
+                        type: object
+                    type: object
+                  type:
+                    description: Type of the SearchAttribute (immutable)
                     enum:
-                    - Disabled
-                    - Enabled
+                    - Text
+                    - Keyword
+                    - Int
+                    - Double
+                    - Bool
+                    - Datetime
+                    - KeywordList
                     type: string
-                  visibilityArchivalUri:
-                    type: string
-                  workflowExecutionRetentionDays:
-                    default: 30
-                    description: Workflow Execution retention.
-                    maximum: 30
-                    minimum: 1
-                    type: integer
+                    x-kubernetes-validations:
+                    - message: Type is immutable
+                      rule: self == oldSelf
                 required:
                 - name
+                - type
                 type: object
+                x-kubernetes-validations:
+                - message: TemporalNamespaceName is required once set
+                  rule: '!has(oldSelf.temporalNamespaceName) || has(self.temporalNamespaceName)'
               managementPolicies:
                 default:
                 - '*'
@@ -305,41 +380,23 @@ spec:
             - forProvider
             type: object
           status:
-            description: A TemporalNamespaceStatus represents the observed state of
-              a TemporalNamespace.
+            description: A SearchAttributeStatus represents the observed state of
+              a SearchAttribute.
             properties:
               atProvider:
-                description: TemporalNamespaceObservation are the observable fields
-                  of a TemporalNamespace.
+                description: SearchAttributeObservation are the observable fields
+                  of a SearchAttribute.
                 properties:
-                  data:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  description:
-                    type: string
-                  historyArchivalState:
-                    type: string
-                  historyArchivalUri:
-                    type: string
-                  id:
-                    type: string
                   name:
                     type: string
-                  ownerEmail:
+                  temporalNamespaceName:
                     type: string
-                  state:
+                  type:
                     type: string
-                  visibilityArchivalState:
-                    type: string
-                  visibilityArchivalUri:
-                    type: string
-                  workflowExecutionRetentionDays:
-                    type: integer
                 required:
-                - id
                 - name
-                - state
+                - temporalNamespaceName
+                - type
                 type: object
               conditions:
                 description: Conditions of the resource.

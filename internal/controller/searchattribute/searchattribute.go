@@ -1,11 +1,25 @@
-package temporalnamespace
+/*
+Copyright 2022 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package searchattribute
 
 import (
 	"context"
 	"strconv"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,6 +30,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -27,23 +43,22 @@ import (
 )
 
 const (
-	errNotTemporalNamespace = "managed resource is not a TemporalNamespace custom resource"
-	errTrackPCUsage         = "cannot track ProviderConfig usage"
-	errGetPC                = "cannot get ProviderConfig"
-	errGetCreds             = "cannot get credentials"
-
-	errNewClient = "cannot create new Service"
-	errDescribe  = "failed to describe Namespace resource"
-	errCreate    = "failed to create Namespace resource"
-	errUpdate    = "failed to update Namespace resource"
-	errDelete    = "failed to delete Namespace resource"
-	errMapping   = "failed to map Namespace resource"
+	errNotSearchAttribute = "managed resource is not a SearchAttribute custom resource"
+	errTrackPCUsage       = "cannot track ProviderConfig usage"
+	errGetPC              = "cannot get ProviderConfig"
+	errGetCreds           = "cannot get credentials"
+	errDescribe           = "failed to describe SearchAttribute resource"
+	errNewClient          = "cannot create new Service"
+	errMapping            = "failed to map SearchAttribute resource as comparable"
+	errCreate             = "failed to create SearchAttribute resource"
+	errUpdate             = "failed to update SearchAttribute resource"
+	errDelete             = "failed to delete SearchAttribute resource"
 )
 
-// Setup adds a controller that reconciles TemporalNamespace managed resources.
+// Setup adds a controller that reconciles SearchAttribute managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	o.Logger.Info("Setup Controller: TemporalNamespace")
-	name := managed.ControllerName(v1alpha1.TemporalNamespaceGroupKind)
+	o.Logger.Info("Setup Controller: SearchAttribute")
+	name := managed.ControllerName(v1alpha1.SearchAttributeGroupKind)
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
@@ -51,13 +66,14 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.TemporalNamespaceGroupVersionKind),
+		resource.ManagedKind(v1alpha1.SearchAttributeGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
 			kube:         mgr.GetClient(),
 			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: temporal.NewNamespaceService,
+			newServiceFn: temporal.NewSearchAttributeService,
 			logger:       o.Logger.WithValues("controller", name)}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
+		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		managed.WithInitializers(),
@@ -67,7 +83,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.TemporalNamespace{}).
+		For(&v1alpha1.SearchAttribute{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -77,7 +93,7 @@ type connector struct {
 	kube         client.Client
 	usage        resource.Tracker
 	logger       logging.Logger
-	newServiceFn func(creds []byte) (temporal.NamespaceService, error)
+	newServiceFn func(creds []byte) (temporal.SearchAttributeService, error)
 }
 
 // Connect typically produces an ExternalClient by:
@@ -88,9 +104,9 @@ type connector struct {
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
 	logger := c.logger.WithValues("method", "connect")
 	logger.Debug("Start Connect")
-	cr, ok := mg.(*v1alpha1.TemporalNamespace)
+	cr, ok := mg.(*v1alpha1.SearchAttribute)
 	if !ok {
-		return nil, errors.New(errNotTemporalNamespace)
+		return nil, errors.New(errNotSearchAttribute)
 	}
 
 	if err := c.usage.Track(ctx, mg); err != nil {
@@ -112,6 +128,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}
+
 	logger.Debug("Connected")
 	return &external{service: svc, logger: c.logger}, nil
 }
@@ -121,22 +138,22 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service temporal.NamespaceService
+	service temporal.SearchAttributeService
 	logger  logging.Logger
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
 	logger := c.logger.WithValues("method", "observe")
 	logger.Debug("Start observe")
-	cr, ok := mg.(*v1alpha1.TemporalNamespace)
+	cr, ok := mg.(*v1alpha1.SearchAttribute)
 	if !ok {
-		return managed.ExternalObservation{}, errors.New(errNotTemporalNamespace)
+		return managed.ExternalObservation{}, errors.New(errNotSearchAttribute)
 	}
 
 	externalName := meta.GetExternalName(cr)
 	c.logger.Debug("ExternalName: '" + externalName + "'")
 
-	observed, err := c.service.DescribeNamespaceByName(ctx, cr.Spec.ForProvider.Name)
+	observed, err := c.service.DescribeSearchAttributeByName(ctx, *cr.Spec.ForProvider.TemporalNamespaceName, cr.Spec.ForProvider.Name)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errDescribe)
 	}
@@ -150,34 +167,28 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		}, nil
 	}
 
-	c.logger.Debug("Found '" + observed.Name + "' with id '" + observed.Id + "'")
+	c.logger.Debug("Found '" + observed.Name + "' in namespace '" + observed.TemporalNamespaceName + "'")
 
 	// Update Status
 	cr.Status.AtProvider = *observed
+	cr.SetConditions(xpv1.Available().WithMessage("SearchAttribute exists"))
 
-	if observed.State == "Registered" {
-		cr.SetConditions(xpv1.Available().WithMessage("Namespace.State = " + observed.State))
+	observedCompareable, err := c.service.MapToSearchAttributeCompare(observed)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errMapping)
 	}
 
-	if observed.State == "Unspecified" {
-		cr.SetConditions(xpv1.Unavailable().WithMessage("Namespace.State = " + observed.State))
-	}
-
-	if observed.State == "Deleted" {
-		cr.SetConditions(xpv1.Deleting().WithMessage("Namespace.State = " + observed.State))
-	}
-
-	observedAsSpec, err := c.service.MapObservationToNamespaceParameters(observed)
+	specCompareable, err := c.service.MapToSearchAttributeCompare(&cr.Spec.ForProvider)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errMapping)
 	}
 
 	diff := ""
-	resourceUpToDate := cmp.Equal(&cr.Spec.ForProvider, observedAsSpec)
+	resourceUpToDate := cmp.Equal(specCompareable, observedCompareable)
 
 	// Compare Spec with observed
 	if !resourceUpToDate {
-		diff = cmp.Diff(&cr.Spec.ForProvider, observedAsSpec)
+		diff = cmp.Diff(specCompareable, observedCompareable)
 	}
 	c.logger.Debug("Managed resource '" + cr.Name + "' upToDate: " + strconv.FormatBool(resourceUpToDate) + "")
 
@@ -193,19 +204,19 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
 	logger := c.logger.WithValues("method", "create")
 	logger.Debug("Start create")
-	cr, ok := mg.(*v1alpha1.TemporalNamespace)
+	cr, ok := mg.(*v1alpha1.SearchAttribute)
 	if !ok {
-		return managed.ExternalCreation{}, errors.New(errNotTemporalNamespace)
+		return managed.ExternalCreation{}, errors.New(errNotSearchAttribute)
 	}
 
-	err := c.service.CreateNamespace(ctx, &cr.Spec.ForProvider)
+	err := c.service.CreateSearchAttribute(ctx, &cr.Spec.ForProvider)
 
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, errCreate)
 	}
 
-	meta.SetExternalName(cr, cr.Spec.ForProvider.Name)
-	c.logger.Debug("Managed resource '" + cr.Name + "' created")
+	meta.SetExternalName(cr, *cr.Spec.ForProvider.TemporalNamespaceName+"."+cr.Spec.ForProvider.Name)
+	c.logger.Debug("Managed resource '" + meta.GetExternalName(cr) + "' created")
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
@@ -217,39 +228,28 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
 	logger := c.logger.WithValues("method", "update")
 	logger.Debug("Start update")
-	cr, ok := mg.(*v1alpha1.TemporalNamespace)
+	cr, ok := mg.(*v1alpha1.SearchAttribute)
 	if !ok {
-		return managed.ExternalUpdate{}, errors.New(errNotTemporalNamespace)
+		return managed.ExternalUpdate{}, errors.New(errNotSearchAttribute)
 	}
 
-	err := c.service.UpdateNamespaceByName(ctx, &cr.Spec.ForProvider)
-
-	if err != nil {
-		return managed.ExternalUpdate{}, errors.Wrap(err, errUpdate)
-	}
-
-	c.logger.Debug("Managed resource '" + cr.Name + "' updated")
-	return managed.ExternalUpdate{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
-		ConnectionDetails: managed.ConnectionDetails{},
-	}, nil
+	return managed.ExternalUpdate{}, errors.New("Search Attribute '" + meta.GetExternalName(cr) + "' can not be updated! All properties are immutable!")
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	logger := c.logger.WithValues("method", "delete")
 	logger.Debug("Start delete")
-	cr, ok := mg.(*v1alpha1.TemporalNamespace)
+	cr, ok := mg.(*v1alpha1.SearchAttribute)
 	if !ok {
-		return errors.New(errNotTemporalNamespace)
+		return errors.New(errNotSearchAttribute)
 	}
 
-	_, err := c.service.DeleteNamespaceByName(ctx, cr.Spec.ForProvider.Name)
+	err := c.service.DeleteSearchAttributeByName(ctx, *cr.Spec.ForProvider.TemporalNamespaceName, cr.Spec.ForProvider.Name)
 
 	if err != nil {
 		return errors.Wrap(err, errDelete)
 	}
 
-	c.logger.Debug("Managed resource '" + cr.Name + "' deleted")
+	c.logger.Debug("Managed resource '" + meta.GetExternalName(cr) + "' deleted")
 	return nil
 }

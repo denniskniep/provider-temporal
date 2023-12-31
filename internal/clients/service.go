@@ -18,7 +18,7 @@ type TemporalServiceImpl struct {
 	logger *slog.Logger
 }
 
-func NewTemporalService(configData []byte) (NamespaceService, error) {
+func NewTemporalService(configData []byte) (*TemporalServiceImpl, error) {
 	var conf = TemporalServiceConfig{}
 	err := json.Unmarshal(configData, &conf)
 	if err != nil {
@@ -44,4 +44,12 @@ func NewTemporalService(configData []byte) (NamespaceService, error) {
 		client: temporalClient,
 		logger: logger,
 	}, err
+}
+
+func NewSearchAttributeService(configData []byte) (SearchAttributeService, error) {
+	return NewTemporalService(configData)
+}
+
+func NewNamespaceService(configData []byte) (NamespaceService, error) {
+	return NewTemporalService(configData)
 }
