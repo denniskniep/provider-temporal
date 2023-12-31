@@ -22,7 +22,7 @@ kind: Provider
 metadata:
   name: provider-temporal
 spec:
-  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.1.0
+  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.2.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
 ---
@@ -74,7 +74,7 @@ kind: Provider
 metadata:
   name: provider-temporal
 spec:
-  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.1.0
+  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.2.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   runtimeConfigRef:
@@ -82,8 +82,9 @@ spec:
 ```
 
 # Covered Managed Resources
-Currently covered Managed Resources
+Currently covered Managed Resources:
 - [TemporalNamespace](#temporalnamespace)
+- [SearchAttribute](#searchattribute)
 
 ## TemporalNamespace 
 A Namespace is a unit of isolation within the Temporal Platform
@@ -92,15 +93,17 @@ A Namespace is a unit of isolation within the Temporal Platform
 
 [temporal cli](https://docs.temporal.io/cli/operator#namespace)
 
+Hint: Currently its not possible to name this managed resource simply `Namespace`, because of [this](https://github.com/kubernetes/kubernetes/pull/108382) and [this](https://github.com/crossplane/terrajet/issues/234).
+
 Example:
 ```
 apiVersion: core.temporal.crossplane.io/v1alpha1
 kind: TemporalNamespace
 metadata:
-  name: ns1
+  name: namespace1
 spec:
   forProvider:
-    name: "Test 1"
+    name: "Test1"
     description: "Desc 1"
     ownerEmail: "Test@test.local"
     workflowExecutionRetentionDays: 30
@@ -114,6 +117,47 @@ spec:
   providerConfigRef:
     name: provider-temporal-config
 ```
+
+## SearchAttribute
+Search Attributes enable complex and business-logic-focused search queries for Workflow Executions. These are often queried through the Temporal Web UI, but you can also query from within your Workflow code. For more debugging and monitoring, you might want to add your own domain-specific Search Attributes, such as customerId or numItems, that can serve as useful search filters.
+
+[temporal docs](https://docs.temporal.io/visibility#custom-search-attributes) 
+
+[temporal cli](https://docs.temporal.io/cli/operator#search-attribute)
+
+
+Example 1:
+```
+apiVersion: core.temporal.crossplane.io/v1alpha1
+kind: SearchAttribute
+metadata:
+  name: searchattr1
+spec:
+  forProvider:
+    name: "Test1"
+    type: "Keyword"
+    temporalNamespaceName: "Test1"
+  providerConfigRef:
+    name: local-temporal-instance-config
+```
+
+
+Example 2:
+```
+apiVersion: core.temporal.crossplane.io/v1alpha1
+kind: SearchAttribute
+metadata:
+  name: searchattr1
+spec:
+  forProvider:
+    name: "Test1"
+    type: "Keyword"
+    temporalNamespaceNameRef:
+      name: "namespace1"
+  providerConfigRef:
+    name: local-temporal-instance-config
+```
+
 # Contribute
 ## Developing
 1. Add new type by running the following command:
