@@ -144,13 +144,13 @@ func (s *TemporalServiceImpl) DeleteNamespaceByName(ctx context.Context, name st
 
 		var namespaceInvalidState *serviceerror.NamespaceInvalidState
 		if errors.As(err, &namespaceInvalidState) {
-			s.logger.Debug("Namespace '" + namespace.Name + "' invalid state. " + err.Error())
+			s.logger.Debug("Namespace '" + namespace.Name + "' invalid state! " + err.Error())
 			return &namespace.Name, nil
 		}
 
 		var namespaceNotFound *serviceerror.NamespaceNotFound
 		if errors.As(err, &namespaceNotFound) {
-			s.logger.Debug("Namespace '" + namespace.Name + "' not found. " + err.Error())
+			s.logger.Debug("Namespace '" + namespace.Name + "' not found! " + err.Error())
 			return &namespace.Name, nil
 		}
 
