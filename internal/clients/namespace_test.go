@@ -235,11 +235,17 @@ func TestCreateDelete(t *testing.T) {
 }
 
 func assertNamespaceAreEqual(t *testing.T, temporalService NamespaceService, actual *core.TemporalNamespaceObservation, expected *core.TemporalNamespaceParameters) {
-	mappedActual, err := temporalService.MapObservationToNamespaceParameters(actual)
+	mappedActual, err := temporalService.MapToNamespaceCompare(actual)
 	if err != nil {
 		t.Fatal(err)
 	}
-	diff := cmp.Diff(mappedActual, expected)
+
+	mappedExpected, err := temporalService.MapToNamespaceCompare(expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	diff := cmp.Diff(mappedActual, mappedExpected)
 	if diff != "" {
 		t.Fatal(diff)
 	}

@@ -26,22 +26,34 @@ type NamespaceService interface {
 	UpdateNamespaceByName(ctx context.Context, namespace *core.TemporalNamespaceParameters) error
 	DeleteNamespaceByName(ctx context.Context, name string) (*string, error)
 
-	MapObservationToNamespaceParameters(ns *core.TemporalNamespaceObservation) (*core.TemporalNamespaceParameters, error)
+	MapToNamespaceCompare(namespace interface{}) (*NamespaceCompare, error)
 }
 
-func (s *TemporalServiceImpl) MapObservationToNamespaceParameters(ns *core.TemporalNamespaceObservation) (*core.TemporalNamespaceParameters, error) {
-	nsJson, err := json.Marshal(ns)
+type NamespaceCompare struct {
+	Name                           string             `json:"name"`
+	Description                    *string            `json:"description,omitempty"`
+	OwnerEmail                     *string            `json:"ownerEmail,omitempty"`
+	WorkflowExecutionRetentionDays int                `json:"workflowExecutionRetentionDays,omitempty"`
+	Data                           *map[string]string `json:"data,omitempty"`
+	HistoryArchivalState           string             `json:"historyArchivalState,omitempty"`
+	HistoryArchivalUri             *string            `json:"historyArchivalUri,omitempty"`
+	VisibilityArchivalState        string             `json:"visibilityArchivalState,omitempty"`
+	VisibilityArchivalUri          *string            `json:"visibilityArchivalUri,omitempty"`
+}
+
+func (s *TemporalServiceImpl) MapToNamespaceCompare(namespace interface{}) (*NamespaceCompare, error) {
+	namespaceJson, err := json.Marshal(namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	var nsParam = core.TemporalNamespaceParameters{}
-	err = json.Unmarshal(nsJson, &nsParam)
+	var namespaceCompare = NamespaceCompare{}
+	err = json.Unmarshal(namespaceJson, &namespaceCompare)
 	if err != nil {
 		return nil, err
 	}
 
-	return &nsParam, nil
+	return &namespaceCompare, nil
 }
 
 func (s *TemporalServiceImpl) CreateNamespace(ctx context.Context, namespace *core.TemporalNamespaceParameters) error {

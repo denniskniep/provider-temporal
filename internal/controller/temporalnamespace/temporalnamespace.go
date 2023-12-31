@@ -167,17 +167,22 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		cr.SetConditions(xpv1.Deleting().WithMessage("Namespace.State = " + observed.State))
 	}
 
-	observedAsSpec, err := c.service.MapObservationToNamespaceParameters(observed)
+	observedCompareable, err := c.service.MapToNamespaceCompare(observed)
+	if err != nil {
+		return managed.ExternalObservation{}, errors.Wrap(err, errMapping)
+	}
+
+	specCompareable, err := c.service.MapToNamespaceCompare(&cr.Spec.ForProvider)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errMapping)
 	}
 
 	diff := ""
-	resourceUpToDate := cmp.Equal(&cr.Spec.ForProvider, observedAsSpec)
+	resourceUpToDate := cmp.Equal(specCompareable, observedCompareable)
 
 	// Compare Spec with observed
 	if !resourceUpToDate {
-		diff = cmp.Diff(&cr.Spec.ForProvider, observedAsSpec)
+		diff = cmp.Diff(specCompareable, observedCompareable)
 	}
 	c.logger.Debug("Managed resource '" + cr.Name + "' upToDate: " + strconv.FormatBool(resourceUpToDate) + "")
 
