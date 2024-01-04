@@ -17,16 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
 	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/reference"
-	"github.com/pkg/errors"
 )
 
 // SearchAttributeParameters are the configurable fields of a SearchAttribute.
@@ -48,7 +44,7 @@ type SearchAttributeParameters struct {
 	// At least one of temporalNamespaceName, temporalNamespaceNameRef or temporalNamespaceNameSelector is required.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="TemporalNamespaceName is immutable"
-	// +crossplane:generate:reference:type=TemporalNamespace
+	// +crossplane:generate:reference:type=github.com/denniskniep/provider-temporal/apis/core/v1alpha1.TemporalNamespace
 	TemporalNamespaceName *string `json:"temporalNamespaceName,omitempty"`
 
 	// Namespace reference to retrieve the namespace name, where search-attribute will be created
@@ -119,24 +115,4 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&SearchAttribute{}, &SearchAttributeList{})
-}
-
-// ResolveReferences resolves references for TemporalNamespaceName
-func (mg *SearchAttribute) ResolveReferences(ctx context.Context, c client.Reader) error {
-	r := reference.NewAPIResolver(c, mg)
-
-	// resolve vpc ID reference
-	rsp, err := r.Resolve(ctx, reference.ResolutionRequest{
-		CurrentValue: reference.FromPtrValue(mg.Spec.ForProvider.TemporalNamespaceName),
-		Reference:    mg.Spec.ForProvider.TemporalNamespaceNameRef,
-		Selector:     mg.Spec.ForProvider.TemporalNamespaceNameSelector,
-		To:           reference.To{Managed: &TemporalNamespace{}, List: &TemporalNamespaceList{}},
-		Extract:      reference.ExternalName(),
-	})
-	if err != nil {
-		return errors.Wrap(err, "spec.forProvider.temporalNamespaceName")
-	}
-	mg.Spec.ForProvider.TemporalNamespaceName = reference.ToPtrValue(rsp.ResolvedValue)
-	mg.Spec.ForProvider.TemporalNamespaceNameRef = rsp.ResolvedReference
-	return nil
 }
