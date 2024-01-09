@@ -1,6 +1,6 @@
 # Temporal Provider
 
-Provider Temporal is a [Crossplane](https://www.crossplane.io/) provider. It was build based on the [Crossplane Template](https://github.com/crossplane/provider-template). It is used to manage and configure [Temporal](https://temporal.io/). It uses the [Temporal Go SDK](https://github.com/temporalio/sdk-go)
+Temporal Provider is a [Crossplane](https://www.crossplane.io/) provider. It was build based on the [Crossplane Template](https://github.com/crossplane/provider-template). It is used to manage and configure [Temporal](https://temporal.io/). It uses the [Temporal Go SDK](https://github.com/temporalio/sdk-go)
 
 # How to use 
 Repository and package:
@@ -169,8 +169,7 @@ spec:
 ```
 2. Replace the *core* group with your new group in apis/{provider}.go
 3. Replace the *MyType* type with your new type in internal/controller/{provider}.go
-
-4. Run `make reviewable` to run code generation, linters, and tests.
+4. Run `make reviewable` to run code generation, linters, and tests. (`make generate` to only run code generation)
 5. Run `make build` to build the provider.
 
 Refer to Crossplane's [CONTRIBUTING.md] file for more information on how the

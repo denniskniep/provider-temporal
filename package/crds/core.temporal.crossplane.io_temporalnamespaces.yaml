@@ -101,7 +101,6 @@ spec:
                   workflowExecutionRetentionDays:
                     default: 30
                     description: Workflow Execution retention.
-                    maximum: 30
                     minimum: 1
                     type: integer
                 required:

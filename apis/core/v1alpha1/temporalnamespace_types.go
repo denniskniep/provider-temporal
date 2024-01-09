@@ -42,7 +42,6 @@ type TemporalNamespaceParameters struct {
 	// Workflow Execution retention.
 	// +kubebuilder:default=30
 	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=30
 	WorkflowExecutionRetentionDays int `json:"workflowExecutionRetentionDays,omitempty"`
 
 	// +optional
