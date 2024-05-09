@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"golang.org/x/exp/slog"
+	"google.golang.org/grpc"
 
 	"go.temporal.io/sdk/client"
 )
@@ -33,6 +34,12 @@ func NewTemporalService(configData []byte) (*TemporalServiceImpl, error) {
 	clientOptions := client.Options{
 		HostPort: conf.HostPort,
 		Logger:   logger,
+		ConnectionOptions: client.ConnectionOptions{
+			DialOptions: []grpc.DialOption{
+				grpc.WithIdleTimeout(60),
+				grpc.WithSharedWriteBuffer(true),
+			},
+		},
 	}
 
 	temporalClient, err := client.Dial(clientOptions)
