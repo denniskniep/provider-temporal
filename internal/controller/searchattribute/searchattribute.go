@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/syncmap"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,10 +72,11 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.SearchAttributeGroupVersionKind),
 		managed.WithExternalConnectDisconnecter(&connector{
-			kube:         mgr.GetClient(),
-			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: temporal.NewSearchAttributeService,
-			logger:       o.Logger.WithValues("controller", name)}),
+			externalClientsByCreds: syncmap.Map{},
+			kube:                   mgr.GetClient(),
+			usage:                  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
+			newServiceFn:           temporal.NewSearchAttributeService,
+			logger:                 o.Logger.WithValues("controller", name)}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
 		managed.WithPollInterval(o.PollInterval),
@@ -96,7 +98,7 @@ type connector struct {
 	kube                   client.Client
 	usage                  resource.Tracker
 	logger                 logging.Logger
-	externalClientsByCreds map[string]*external
+	externalClientsByCreds syncmap.Map
 	newServiceFn           func(creds []byte) (temporal.SearchAttributeService, error)
 }
 
@@ -137,25 +139,23 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	credHash := hash(creds)
-	if c.externalClientsByCreds == nil {
-		c.externalClientsByCreds = make(map[string]*external)
+
+	svc, err := c.newServiceFn(creds)
+	if err != nil {
+		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	ext := c.externalClientsByCreds[credHash]
-	if ext != nil {
+	ext := &external{service: svc, logger: c.logger, id: uuid.New().String()}
+	value, ok := c.externalClientsByCreds.LoadOrStore(credHash, ext)
+	if ok {
+		ext.service.Close()
+		ext = value.(*external)
 		logger.Debug("Use existing " + ext.id)
-		return ext, nil
 	} else {
-		svc, err := c.newServiceFn(creds)
-		if err != nil {
-			return nil, errors.Wrap(err, errNewClient)
-		}
-
-		ext = &external{service: svc, logger: c.logger, id: uuid.New().String()}
-		c.externalClientsByCreds[credHash] = ext
 		logger.Debug("Connected " + ext.id)
 	}
 
+	ext.usageCounter++
 	return ext, nil
 }
 
@@ -163,13 +163,25 @@ func (c *connector) Disconnect(ctx context.Context) error {
 	logger := c.logger.WithValues("method", "disconnect")
 	logger.Debug("Start Disconnect")
 
-	for credHash, ext := range c.externalClientsByCreds {
-		if ext != nil && ext.service != nil {
-			ext.service.Close()
-			logger.Debug("Disconnected " + ext.id)
+	c.externalClientsByCreds.Range(func(key, value interface{}) bool {
+
+		ext := value.(*external)
+		ext.usageCounter--
+		if ext.usageCounter < 0 {
+			ext.usageCounter = 0
 		}
-		c.externalClientsByCreds[credHash] = nil
-	}
+
+		if ext.usageCounter == 0 && ext.service != nil {
+			ext.service.Close()
+			c.externalClientsByCreds.LoadAndDelete(key)
+			logger.Debug("Disconnected " + ext.id)
+		} else {
+			logger.Debug("Keep connection " + ext.id)
+		}
+
+		// this will continue iterating
+		return true
+	})
 
 	return nil
 }
@@ -179,9 +191,10 @@ func (c *connector) Disconnect(ctx context.Context) error {
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service temporal.SearchAttributeService
-	logger  logging.Logger
-	id      string
+	service      temporal.SearchAttributeService
+	logger       logging.Logger
+	id           string
+	usageCounter int
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
