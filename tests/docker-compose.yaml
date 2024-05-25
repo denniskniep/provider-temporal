@@ -13,7 +13,15 @@ services:
       - 7222:7233
     depends_on:
       - postgresql
-
+  temporal-ui:
+    image: temporalio/ui:2.21.4
+    container_name: temporal-ui
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+    ports:
+      - 8181:8080
   postgresql:
     image: postgres:13
     environment:

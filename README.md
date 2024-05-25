@@ -179,6 +179,16 @@ guide may also be of use.
 [CONTRIBUTING.md]: https://github.com/crossplane/crossplane/blob/master/CONTRIBUTING.md
 [provider-dev]: https://github.com/crossplane/crossplane/blob/master/contributing/guide-provider-development.md
 
+## Start Debug with local cluster
+* `make dev` starts a fresh KIND cluster
+*  `sudo docker-compose -f tests/docker-compose.yaml up -d` starts temporal environment
+*  debug source code with `.vscode/launch.json`
+*  Apply the CRDs `kubectl apply -f examples` 
+
+## Stop Debug with local cluster
+*  `make dev-clean` shutdown the earlier started KIND cluster
+*  `sudo docker-compose -f tests/docker-compose.yaml down -v`
+
 ## Tests
 Start temporal environment for tests
 ```
