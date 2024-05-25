@@ -87,20 +87,21 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/provider --debug
 
+USER_DIR := $(abspath $(shell cd ~ && pwd -P))
+
 dev: $(KIND) $(KUBECTL)
 	@$(INFO) Creating kind cluster
-	@$(KIND) create cluster --name=$(PROJECT_NAME)-dev
+	@sudo $(KIND) create cluster --name=$(PROJECT_NAME)-dev --kubeconfig=$(USER_DIR)/.kube/config
 	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
 	@$(INFO) Installing Crossplane CRDs
-	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane//cluster?ref=master
+	@$(KUBECTL) create -k https://github.com/crossplane/crossplane//cluster?ref=master
 	@$(INFO) Installing Provider temporal CRDs
 	@$(KUBECTL) apply -R -f package/crds
-	@$(INFO) Starting Provider temporal controllers
-	@$(GO) run cmd/provider/main.go --debug
+	@$(INFO) Start Provider temporal via: $(GO) run cmd/provider/main.go --debug
 
 dev-clean: $(KIND) $(KUBECTL)
 	@$(INFO) Deleting kind cluster
-	@$(KIND) delete cluster --name=$(PROJECT_NAME)-dev
+	@sudo $(KIND) delete cluster --name=$(PROJECT_NAME)-dev
 
 .PHONY: submodules fallthrough test-integration run dev dev-clean
 

@@ -1,0 +1,11 @@
+apiVersion: temporal.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: local-temporal-instance-config
+spec: 
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: provider-temporal-config-creds
+      key: credentials  

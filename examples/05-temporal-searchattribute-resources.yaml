@@ -1,0 +1,11 @@
+apiVersion: core.temporal.crossplane.io/v1alpha1
+kind: SearchAttribute
+metadata:
+  name: searchattr1
+spec:
+  forProvider:
+    name: "Test0815"
+    type: "Keyword"
+    temporalNamespaceName: "Test 1"
+  providerConfigRef:
+    name: local-temporal-instance-config

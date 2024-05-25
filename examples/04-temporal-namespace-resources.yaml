@@ -1,0 +1,11 @@
+apiVersion: core.temporal.crossplane.io/v1alpha1
+kind: TemporalNamespace
+metadata:
+  name: ns1
+spec:
+  forProvider:
+    name: "Test 1"
+    description: "Desc 1"
+    ownerEmail: "Test@test.local"
+  providerConfigRef:
+    name: local-temporal-instance-config
