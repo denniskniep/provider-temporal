@@ -46,6 +46,10 @@ func NewTemporalService(configData []byte) (*TemporalServiceImpl, error) {
 	}, err
 }
 
+func (s *TemporalServiceImpl) Close() {
+	s.client.Close()
+}
+
 func NewSearchAttributeService(configData []byte) (SearchAttributeService, error) {
 	return NewTemporalService(configData)
 }

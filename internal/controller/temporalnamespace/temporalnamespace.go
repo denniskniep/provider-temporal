@@ -2,11 +2,14 @@ package temporalnamespace
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"strconv"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,7 +55,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.TemporalNamespaceGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
+		managed.WithExternalConnectDisconnecter(&connector{
 			kube:         mgr.GetClient(),
 			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
 			newServiceFn: temporal.NewNamespaceService,
@@ -74,10 +77,19 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube         client.Client
-	usage        resource.Tracker
-	logger       logging.Logger
-	newServiceFn func(creds []byte) (temporal.NamespaceService, error)
+	kube                   client.Client
+	usage                  resource.Tracker
+	logger                 logging.Logger
+	externalClientsByCreds map[string]*external
+	newServiceFn           func(creds []byte) (temporal.NamespaceService, error)
+}
+
+func hash(content []byte) string {
+	h := sha256.New()
+	h.Write(content)
+	sha := h.Sum(nil)
+	shaStr := hex.EncodeToString(sha)
+	return shaStr
 }
 
 // Connect typically produces an ExternalClient by:
@@ -103,17 +115,47 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	cd := pc.Spec.Credentials
-	data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
+	creds, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
 	if err != nil {
 		return nil, errors.Wrap(err, errGetCreds)
 	}
 
-	svc, err := c.newServiceFn(data)
-	if err != nil {
-		return nil, errors.Wrap(err, errNewClient)
+	credHash := hash(creds)
+	if c.externalClientsByCreds == nil {
+		c.externalClientsByCreds = make(map[string]*external)
 	}
-	logger.Debug("Connected")
-	return &external{service: svc, logger: c.logger}, nil
+
+	ext := c.externalClientsByCreds[credHash]
+	if ext != nil {
+		logger.Debug("Use existing " + ext.id)
+		return ext, nil
+	} else {
+		svc, err := c.newServiceFn(creds)
+		if err != nil {
+			return nil, errors.Wrap(err, errNewClient)
+		}
+
+		ext = &external{service: svc, logger: c.logger, id: uuid.New().String()}
+		c.externalClientsByCreds[credHash] = ext
+		logger.Debug("Connected " + ext.id)
+	}
+
+	return ext, nil
+}
+
+func (c *connector) Disconnect(ctx context.Context) error {
+	logger := c.logger.WithValues("method", "disconnect")
+	logger.Debug("Start Disconnect")
+
+	for credHash, ext := range c.externalClientsByCreds {
+		if ext.service != nil {
+			ext.service.Close()
+			logger.Debug("Disconnected " + ext.id)
+		}
+		c.externalClientsByCreds[credHash] = nil
+	}
+
+	return nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
@@ -123,10 +165,11 @@ type external struct {
 	// would be something like an AWS SDK client.
 	service temporal.NamespaceService
 	logger  logging.Logger
+	id      string
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	logger := c.logger.WithValues("method", "observe")
+	logger := c.logger.WithValues("method", "observe", "serviceId", c.id)
 	logger.Debug("Start observe")
 	cr, ok := mg.(*v1alpha1.TemporalNamespace)
 	if !ok {
@@ -196,7 +239,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	logger := c.logger.WithValues("method", "create")
+	logger := c.logger.WithValues("method", "create", "serviceId", c.id)
 	logger.Debug("Start create")
 	cr, ok := mg.(*v1alpha1.TemporalNamespace)
 	if !ok {
@@ -220,7 +263,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	logger := c.logger.WithValues("method", "update")
+	logger := c.logger.WithValues("method", "update", "serviceId", c.id)
 	logger.Debug("Start update")
 	cr, ok := mg.(*v1alpha1.TemporalNamespace)
 	if !ok {
@@ -242,7 +285,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	logger := c.logger.WithValues("method", "delete")
+	logger := c.logger.WithValues("method", "delete", "serviceId", c.id)
 	logger.Debug("Start delete")
 	cr, ok := mg.(*v1alpha1.TemporalNamespace)
 	if !ok {
