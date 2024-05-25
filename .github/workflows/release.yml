@@ -173,7 +173,7 @@ jobs:
       - unit-tests
       - check-diff
       - lint
-    if: needs.detect-noop.outputs.noop != 'true'
+    if: needs.detect-noop.outputs.noop != 'true' && contains(github.ref, 'refs/tags/v')
 
     steps:
       - name: Setup QEMU
