@@ -88,11 +88,11 @@ func (s *TemporalServiceImpl) ListSearchAttributesByNamespace(ctx context.Contex
 		return nil, err
 	}
 
-	var customAttributes = make([]*core.SearchAttributeObservation, 0, len(response.CustomAttributes))
-
 	if response == nil {
-		return customAttributes, nil
+		return make([]*core.SearchAttributeObservation, 0), nil
 	}
+
+	var customAttributes = make([]*core.SearchAttributeObservation, 0, len(response.CustomAttributes))
 
 	for attrName, attrType := range response.CustomAttributes {
 		customAttribute := core.SearchAttributeObservation{
