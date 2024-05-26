@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"strconv"
+	"sync"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -138,7 +139,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		logger.Debug("Connected " + ext.id)
 	}
 
-	ext.usageCounter++
+	ext.IncrementUsageCounter()
 	return ext, nil
 }
 
@@ -149,12 +150,12 @@ func (c *connector) Disconnect(ctx context.Context) error {
 	c.externalClientsByCreds.Range(func(key, value interface{}) bool {
 
 		ext := value.(*external)
-		ext.usageCounter--
-		if ext.usageCounter < 0 {
-			ext.usageCounter = 0
+		ext.DecrementUsageCounter()
+		if ext.GetUsageCounter() < 0 {
+			ext.SetUsageCounter(0)
 		}
 
-		if ext.usageCounter == 0 && ext.service != nil {
+		if ext.GetUsageCounter() == 0 && ext.service != nil {
 			ext.service.Close()
 			c.externalClientsByCreds.LoadAndDelete(key)
 			logger.Debug("Disconnected " + ext.id)
@@ -178,6 +179,31 @@ type external struct {
 	logger       logging.Logger
 	id           string
 	usageCounter int
+	sync.RWMutex
+}
+
+func (c *external) GetUsageCounter() int {
+	c.RLock()
+	defer c.RUnlock()
+	return c.usageCounter
+}
+
+func (c *external) IncrementUsageCounter() {
+	c.Lock()
+	defer c.Unlock()
+	c.usageCounter++
+}
+
+func (c *external) DecrementUsageCounter() {
+	c.Lock()
+	defer c.Unlock()
+	c.usageCounter--
+}
+
+func (c *external) SetUsageCounter(usageCounter int) {
+	c.Lock()
+	defer c.Unlock()
+	c.usageCounter = usageCounter
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
