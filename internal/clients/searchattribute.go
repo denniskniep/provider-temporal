@@ -17,6 +17,8 @@ type SearchAttributeService interface {
 	DeleteSearchAttributeByName(ctx context.Context, namespace string, name string) error
 
 	MapToSearchAttributeCompare(searchAttribute interface{}) (*SearchAttributeCompare, error)
+
+	Close()
 }
 
 type SearchAttributeCompare struct {
@@ -82,14 +84,15 @@ func (s *TemporalServiceImpl) ListSearchAttributesByNamespace(ctx context.Contex
 	}
 
 	response, err := s.client.OperatorService().ListSearchAttributes(ctx, request)
-	var customAttributes = make([]*core.SearchAttributeObservation, 0, len(response.CustomAttributes))
 	if err != nil {
 		return nil, err
 	}
 
 	if response == nil {
-		return customAttributes, nil
+		return make([]*core.SearchAttributeObservation, 0), nil
 	}
+
+	var customAttributes = make([]*core.SearchAttributeObservation, 0, len(response.CustomAttributes))
 
 	for attrName, attrType := range response.CustomAttributes {
 		customAttribute := core.SearchAttributeObservation{

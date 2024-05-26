@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
@@ -70,6 +71,8 @@ type SearchAttributeObservation struct {
 // A SearchAttributeSpec defines the desired state of a SearchAttribute.
 type SearchAttributeSpec struct {
 	xpv1.ResourceSpec `json:",inline"`
+	// +kubebuilder:default={"name": "default"}
+	ProviderReference *v1.Reference             `json:"providerRef,omitempty"`
 	ForProvider       SearchAttributeParameters `json:"forProvider"`
 }
 

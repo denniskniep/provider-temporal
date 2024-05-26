@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
@@ -90,6 +91,8 @@ type TemporalNamespaceObservation struct {
 // A TemporalNamespaceSpec defines the desired state of a TemporalNamespace.
 type TemporalNamespaceSpec struct {
 	xpv1.ResourceSpec `json:",inline"`
+	// +kubebuilder:default={"name": "default"}
+	ProviderReference *v1.Reference               `json:"providerRef,omitempty"`
 	ForProvider       TemporalNamespaceParameters `json:"forProvider"`
 }
 

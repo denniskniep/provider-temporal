@@ -27,6 +27,8 @@ type NamespaceService interface {
 	DeleteNamespaceByName(ctx context.Context, name string) (*string, error)
 
 	MapToNamespaceCompare(namespace interface{}) (*NamespaceCompare, error)
+
+	Close()
 }
 
 type NamespaceCompare struct {

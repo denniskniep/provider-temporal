@@ -18,10 +18,15 @@ package searchattribute
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"strconv"
+	"sync"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/syncmap"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,11 +72,12 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.SearchAttributeGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
-			kube:         mgr.GetClient(),
-			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: temporal.NewSearchAttributeService,
-			logger:       o.Logger.WithValues("controller", name)}),
+		managed.WithExternalConnectDisconnecter(&connector{
+			externalClientsByCreds: syncmap.Map{},
+			kube:                   mgr.GetClient(),
+			usage:                  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
+			newServiceFn:           temporal.NewSearchAttributeService,
+			logger:                 o.Logger.WithValues("controller", name)}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithReferenceResolver(managed.NewAPISimpleReferenceResolver(mgr.GetClient())),
 		managed.WithPollInterval(o.PollInterval),
@@ -90,10 +96,19 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube         client.Client
-	usage        resource.Tracker
-	logger       logging.Logger
-	newServiceFn func(creds []byte) (temporal.SearchAttributeService, error)
+	kube                   client.Client
+	usage                  resource.Tracker
+	logger                 logging.Logger
+	externalClientsByCreds syncmap.Map
+	newServiceFn           func(creds []byte) (temporal.SearchAttributeService, error)
+}
+
+func hash(content []byte) string {
+	h := sha256.New()
+	h.Write(content)
+	sha := h.Sum(nil)
+	shaStr := hex.EncodeToString(sha)
+	return shaStr
 }
 
 // Connect typically produces an ExternalClient by:
@@ -119,18 +134,57 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	cd := pc.Spec.Credentials
-	data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
+	creds, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
 	if err != nil {
 		return nil, errors.Wrap(err, errGetCreds)
 	}
 
-	svc, err := c.newServiceFn(data)
+	credHash := hash(creds)
+
+	svc, err := c.newServiceFn(creds)
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	logger.Debug("Connected")
-	return &external{service: svc, logger: c.logger}, nil
+	ext := &external{service: svc, logger: c.logger, id: uuid.New().String()}
+	value, ok := c.externalClientsByCreds.LoadOrStore(credHash, ext)
+	if ok {
+		ext.service.Close()
+		ext = value.(*external)
+		logger.Debug("Use existing " + ext.id)
+	} else {
+		logger.Debug("Connected " + ext.id)
+	}
+
+	ext.IncrementUsageCounter()
+	return ext, nil
+}
+
+func (c *connector) Disconnect(ctx context.Context) error {
+	logger := c.logger.WithValues("method", "disconnect")
+	logger.Debug("Start Disconnect")
+
+	c.externalClientsByCreds.Range(func(key, value interface{}) bool {
+
+		ext := value.(*external)
+		ext.DecrementUsageCounter()
+		if ext.GetUsageCounter() < 0 {
+			ext.SetUsageCounter(0)
+		}
+
+		if ext.GetUsageCounter() == 0 && ext.service != nil {
+			ext.service.Close()
+			c.externalClientsByCreds.LoadAndDelete(key)
+			logger.Debug("Disconnected " + ext.id)
+		} else {
+			logger.Debug("Keep connection " + ext.id)
+		}
+
+		// this will continue iterating
+		return true
+	})
+
+	return nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
@@ -138,12 +192,39 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service temporal.SearchAttributeService
-	logger  logging.Logger
+	service      temporal.SearchAttributeService
+	logger       logging.Logger
+	id           string
+	usageCounter int
+	sync.RWMutex
+}
+
+func (c *external) GetUsageCounter() int {
+	c.RLock()
+	defer c.RUnlock()
+	return c.usageCounter
+}
+
+func (c *external) IncrementUsageCounter() {
+	c.Lock()
+	defer c.Unlock()
+	c.usageCounter++
+}
+
+func (c *external) DecrementUsageCounter() {
+	c.Lock()
+	defer c.Unlock()
+	c.usageCounter--
+}
+
+func (c *external) SetUsageCounter(usageCounter int) {
+	c.Lock()
+	defer c.Unlock()
+	c.usageCounter = usageCounter
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	logger := c.logger.WithValues("method", "observe")
+	logger := c.logger.WithValues("method", "observe", "serviceId", c.id)
 	logger.Debug("Start observe")
 	cr, ok := mg.(*v1alpha1.SearchAttribute)
 	if !ok {
@@ -152,6 +233,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	externalName := meta.GetExternalName(cr)
 	c.logger.Debug("ExternalName: '" + externalName + "'")
+
+	if cr.Spec.ForProvider.TemporalNamespaceName == nil {
+		return managed.ExternalObservation{}, errors.New("TemporalNamespaceName not set")
+	}
 
 	observed, err := c.service.DescribeSearchAttributeByName(ctx, *cr.Spec.ForProvider.TemporalNamespaceName, cr.Spec.ForProvider.Name)
 	if err != nil {
@@ -202,7 +287,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	logger := c.logger.WithValues("method", "create")
+	logger := c.logger.WithValues("method", "create", "serviceId", c.id)
 	logger.Debug("Start create")
 	cr, ok := mg.(*v1alpha1.SearchAttribute)
 	if !ok {
@@ -226,7 +311,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	logger := c.logger.WithValues("method", "update")
+	logger := c.logger.WithValues("method", "update", "serviceId", c.id)
 	logger.Debug("Start update")
 	cr, ok := mg.(*v1alpha1.SearchAttribute)
 	if !ok {
@@ -237,7 +322,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	logger := c.logger.WithValues("method", "delete")
+	logger := c.logger.WithValues("method", "delete", "serviceId", c.id)
 	logger.Debug("Start delete")
 	cr, ok := mg.(*v1alpha1.SearchAttribute)
 	if !ok {
