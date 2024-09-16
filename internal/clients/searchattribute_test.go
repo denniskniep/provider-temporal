@@ -16,6 +16,11 @@ func createSearchAttributeService(t *testing.T) *TemporalServiceImpl {
 	return temporalService
 }
 
+func createSearchAttributeServiceTLS(t *testing.T) *TemporalServiceImpl {
+	temporalService := createTemporalServiceTLS(t)
+	return temporalService
+}
+
 func createSearchAttributeParameters(namespace string, attrName string, attrType string) *core.SearchAttributeParameters {
 	return &core.SearchAttributeParameters{
 		Name:                  attrName,
@@ -36,6 +41,32 @@ func TestCreateSearchAttribute(t *testing.T) {
 	}
 
 	testAttr := createSearchAttributeParameters(testNamespace.Name, "test1", "Keyword")
+	temporalService.CreateSearchAttribute(context.Background(), testAttr)
+
+	foundSearchAttr, err := temporalService.DescribeSearchAttributeByName(context.Background(), testNamespace.Name, testAttr.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertSearchAttributesAreEqual(t, temporalService, foundSearchAttr, testAttr)
+	assertSearchAttributeCount(t, temporalService, testNamespace.Name, 1)
+
+	temporalService.DeleteSearchAttributeByName(context.Background(), testNamespace.Name, testAttr.Name)
+	assertSearchAttributeCount(t, temporalService, testNamespace.Name, 0)
+}
+
+func TestCreateSearchAttributeTLS(t *testing.T) {
+	skipIfIsShort(t)
+
+	temporalService := createSearchAttributeServiceTLS(t)
+	testNamespace := createDefaultNamespaceParametersWithName("Test010")
+
+	err := temporalService.CreateNamespace(context.Background(), testNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testAttr := createSearchAttributeParameters(testNamespace.Name, "test1TLS", "Keyword")
 	temporalService.CreateSearchAttribute(context.Background(), testAttr)
 
 	foundSearchAttr, err := temporalService.DescribeSearchAttributeByName(context.Background(), testNamespace.Name, testAttr.Name)

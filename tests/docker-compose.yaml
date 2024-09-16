@@ -19,15 +19,77 @@ services:
     depends_on:
       - temporal
     environment:
-      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=temporal-for-tests:7233
     ports:
       - 8181:8080
   postgresql:
     image: postgres:13
+    container_name: postgres
     environment:
       POSTGRES_PASSWORD: temporal
       POSTGRES_USER: temporal    
     ports:
       - 5432:5432
+    volumes:
+      - /var/lib/postgresql/data
+  temporal-tls:
+    image: temporalio/auto-setup:1.22.3.0
+    container_name: temporal-tls-for-tests
+    ports:
+      - "7223:7233"
+    volumes:
+      - ${PWD}/certs:/certs
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql-tls
+      - TEMPORAL_TLS_SERVER_CA_CERT=/certs/ca.cert
+      - TEMPORAL_TLS_SERVER_CERT=/certs/cluster.pem
+      - TEMPORAL_TLS_SERVER_KEY=/certs/cluster.key
+      - TEMPORAL_TLS_REQUIRE_CLIENT_AUTH=true
+      - TEMPORAL_TLS_FRONTEND_CERT=/certs/cluster.pem
+      - TEMPORAL_TLS_FRONTEND_KEY=/certs/cluster.key
+      - TEMPORAL_TLS_CLIENT1_CA_CERT=/certs/ca.cert
+      - TEMPORAL_TLS_CLIENT2_CA_CERT=/certs/ca.cert
+      - TEMPORAL_TLS_INTERNODE_SERVER_NAME=localhost
+      - TEMPORAL_TLS_FRONTEND_SERVER_NAME=localhost
+      - TEMPORAL_TLS_FRONTEND_DISABLE_HOST_VERIFICATION=false
+      - TEMPORAL_TLS_INTERNODE_DISABLE_HOST_VERIFICATION=false
+      - TEMPORAL_CLI_TLS_CA=/certs/ca.cert
+      - TEMPORAL_CLI_TLS_CERT=/certs/cluster.pem
+      - TEMPORAL_CLI_TLS_KEY=/certs/cluster.key
+      - TEMPORAL_CLI_TLS_ENABLE_HOST_VERIFICATION=true
+      - TEMPORAL_CLI_TLS_SERVER_NAME=localhost
+      - TEMPORAL_TLS_CA=/certs/ca.cert
+      - TEMPORAL_TLS_CERT=/certs/cluster.pem
+      - TEMPORAL_TLS_KEY=/certs/cluster.key
+      - TEMPORAL_TLS_ENABLE_HOST_VERIFICATION=true
+      - TEMPORAL_TLS_SERVER_NAME=localhost
+    depends_on:
+      - postgresql-tls
+  temporal-ui-tls:
+    image: temporalio/ui:2.21.4
+    container_name: temporal-ui-tls
+    depends_on:
+      - temporal-tls
+    environment:
+      - TEMPORAL_ADDRESS=temporal-tls-for-tests:7233
+      - TEMPORAL_TLS_CA=/certs/ca.cert
+      - TEMPORAL_TLS_CERT=/certs/cluster.pem
+      - TEMPORAL_TLS_KEY=/certs/cluster.key
+    ports:
+      - 8282:8080
+    volumes:
+      - ${PWD}/certs:/certs
+  postgresql-tls:
+    container_name: postgres-tls
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+    ports:
+      - 5433:5432
     volumes:
       - /var/lib/postgresql/data

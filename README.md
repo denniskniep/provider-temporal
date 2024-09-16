@@ -50,6 +50,17 @@ spec:
       name: provider-temporal-config-creds
       key: credentials  
 ```
+
+Provider Credentials with TLS:
+```
+{
+  "HostPort": "temporal:7233",
+  "UseTLS": true,
+  "CACert": "-----BEGIN CERTIFICATE-----\nhere insert CA certificate\n-----END CERTIFICATE-----",
+  "CertFile": "-----BEGIN CERTIFICATE-----\nhere insert certificate\n-----END CERTIFICATE-----",
+  "KeyFile": "-----BEGIN RSA PRIVATE KEY-----\nhere insert key\n-----END RSA PRIVATE KEY-----",
+}
+```
 # Troubleshooting
 Create a DeploymentRuntimeConfig and set the arg `--debug` on the package-runtime container:
 
@@ -193,4 +204,15 @@ guide may also be of use.
 Start temporal environment for tests
 ```
 sudo docker-compose -f tests/docker-compose.yaml up 
+```
+## TLS
+
+In case test certificates are expired, run `bash certs/generate-test-certs.sh` and new certificates will be created.
+
+Then, edit `internal/clients/service_test.go` and update the new test certificates to `jsonConfig` after you replace the newlines with `\n`.
+
+```
+awk 'NR > 1 {printf "\\n"} {printf "%s", $0} END {printf ""}' certs/client.pem
+awk 'NR > 1 {printf "\\n"} {printf "%s", $0} END {printf ""}' certs/client.key
+awk 'NR > 1 {printf "\\n"} {printf "%s", $0} END {printf ""}' certs/ca.crt
 ```

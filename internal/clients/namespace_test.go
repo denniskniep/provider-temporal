@@ -22,6 +22,16 @@ func createTemporalNamespaceService(t *testing.T) *TemporalServiceImpl {
 	return temporalService
 }
 
+func createTemporalNamespaceServiceTLS(t *testing.T) *TemporalServiceImpl {
+	temporalService := createTemporalServiceTLS(t)
+
+	_, err := temporalService.DeleteAllNamespaces(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return temporalService
+}
+
 func createDefaultNamespaceParametersWithName(name string) *core.TemporalNamespaceParameters {
 	desc := "Desc1"
 	mail := "Test1@mail.local"
@@ -208,6 +218,64 @@ func TestCreateDelete(t *testing.T) {
 
 	temporalService := createTemporalNamespaceService(t)
 	testNamespace1 := createDefaultNamespaceParametersWithName("Test004")
+
+	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+
+	created1, err1 := temporalService.DescribeNamespaceByName(context.Background(), testNamespace1.Name)
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+
+	assertNamespaceAreEqual(t, temporalService, created1, testNamespace1)
+	assertNamespacesCount(t, temporalService, 1)
+
+	deleted, err1 := temporalService.DeleteNamespaceByName(context.Background(), created1.Name)
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+
+	if deleted == nil {
+		t.Fatal("Namespace " + created1.Name + " not deleted")
+	}
+	t.Logf("Deleted: %s", *deleted)
+	assertNamespacesCount(t, temporalService, 0)
+}
+
+func TestCreateTLS(t *testing.T) {
+	skipIfIsShort(t)
+
+	temporalService := createTemporalNamespaceServiceTLS(t)
+	testNamespace := createDefaultNamespaceParametersWithName("TestTLS007")
+
+	err := temporalService.CreateNamespace(context.Background(), testNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	created, err := temporalService.DescribeNamespaceByName(context.Background(), testNamespace.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertNamespaceAreEqual(t, temporalService, created, testNamespace)
+	assertNamespacesCount(t, temporalService, 1)
+
+	_, err = temporalService.DeleteNamespaceByName(context.Background(), testNamespace.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertNamespacesCount(t, temporalService, 0)
+}
+
+func TestCreateDeleteTLS(t *testing.T) {
+	skipIfIsShort(t)
+
+	temporalService := createTemporalNamespaceServiceTLS(t)
+	testNamespace1 := createDefaultNamespaceParametersWithName("TestTLS004")
 
 	err1 := temporalService.CreateNamespace(context.Background(), testNamespace1)
 	if err1 != nil {
