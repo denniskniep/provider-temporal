@@ -16,11 +16,11 @@ import (
 )
 
 type TemporalServiceConfig struct {
-	HostPort string `json:"hostPort"`
-	UseTLS   bool   `json:"useTLS"`
-	CACert   string `json:"caCert"`
-	CertFile string `json:"certFile"`
-	KeyFile  string `json:"keyFile"`
+	HostPort  string `json:"hostPort"`
+	UseTLS    bool   `json:"useTLS"`
+	CACertPem string `json:"caCertPem"`
+	CertPem   string `json:"certPem"`
+	KeyPem    string `json:"keyPem"`
 }
 
 type TemporalServiceImpl struct {
@@ -43,16 +43,20 @@ func NewTemporalService(configData []byte) (*TemporalServiceImpl, error) {
 	logger.Debug("Starting NewTemporalService", slog.String("hostPort", conf.HostPort), slog.Bool("useTLS", conf.UseTLS))
 
 	var dialOptions []grpc.DialOption
-	if conf.UseTLS && conf.CACert != "" && conf.CertFile != "" && conf.KeyFile != "" {
+	if conf.UseTLS {
+		if conf.CACertPem == "" || conf.CertPem == "" || conf.KeyPem == "" {
+			return nil, fmt.Errorf("TLS is enabled but one or more of the certificates or key are missing")
+		}
+
 		logger.Debug("Loading client certificate from strings")
-		cert, err := tls.X509KeyPair([]byte(conf.CertFile), []byte(conf.KeyFile))
+		cert, err := tls.X509KeyPair([]byte(conf.CertPem), []byte(conf.KeyPem))
 		if err != nil {
 			return nil, fmt.Errorf("failed to load client certificate: %w", err)
 		}
 
 		logger.Debug("Loading CA certificate from string")
 		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM([]byte(conf.CACert)) {
+		if !caCertPool.AppendCertsFromPEM([]byte(conf.CACertPem)) {
 			return nil, fmt.Errorf("failed to append CA certificate")
 		}
 

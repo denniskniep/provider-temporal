@@ -56,9 +56,9 @@ Provider Credentials with TLS:
 {
   "HostPort": "temporal:7233",
   "UseTLS": true,
-  "CACert": "-----BEGIN CERTIFICATE-----\nhere insert CA certificate\n-----END CERTIFICATE-----",
-  "CertFile": "-----BEGIN CERTIFICATE-----\nhere insert certificate\n-----END CERTIFICATE-----",
-  "KeyFile": "-----BEGIN RSA PRIVATE KEY-----\nhere insert key\n-----END RSA PRIVATE KEY-----",
+  "CACertPem": "-----BEGIN CERTIFICATE-----\nhere insert CA certificate\n-----END CERTIFICATE-----",
+  "CertPem": "-----BEGIN CERTIFICATE-----\nhere insert certificate\n-----END CERTIFICATE-----",
+  "KeyPem": "-----BEGIN RSA PRIVATE KEY-----\nhere insert key\n-----END RSA PRIVATE KEY-----",
 }
 ```
 # Troubleshooting
@@ -214,5 +214,5 @@ Then, edit `internal/clients/service_test.go` and update the new test certificat
 ```
 awk 'NR > 1 {printf "\\n"} {printf "%s", $0} END {printf ""}' certs/client.pem
 awk 'NR > 1 {printf "\\n"} {printf "%s", $0} END {printf ""}' certs/client.key
-awk 'NR > 1 {printf "\\n"} {printf "%s", $0} END {printf ""}' certs/ca.crt
+awk 'NR > 1 {printf "\\n"} {printf "%s", $0} END {printf ""}' certs/ca.cert
 ```
