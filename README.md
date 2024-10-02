@@ -22,7 +22,7 @@ kind: Provider
 metadata:
   name: provider-temporal
 spec:
-  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.2.0
+  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.5.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
 ---
@@ -51,6 +51,14 @@ spec:
       key: credentials  
 ```
 
+Provider Credentials without TLS:
+```
+{
+  "HostPort": "temporal:7233",
+  "UseTLS": false
+}
+```
+
 Provider Credentials with TLS:
 ```
 {
@@ -58,9 +66,10 @@ Provider Credentials with TLS:
   "UseTLS": true,
   "CACertPem": "-----BEGIN CERTIFICATE-----\nhere insert CA certificate\n-----END CERTIFICATE-----",
   "CertPem": "-----BEGIN CERTIFICATE-----\nhere insert certificate\n-----END CERTIFICATE-----",
-  "KeyPem": "-----BEGIN RSA PRIVATE KEY-----\nhere insert key\n-----END RSA PRIVATE KEY-----",
+  "KeyPem": "-----BEGIN RSA PRIVATE KEY-----\nhere insert key\n-----END RSA PRIVATE KEY-----"
 }
 ```
+
 # Troubleshooting
 Create a DeploymentRuntimeConfig and set the arg `--debug` on the package-runtime container:
 
@@ -85,7 +94,7 @@ kind: Provider
 metadata:
   name: provider-temporal
 spec:
-  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.2.0
+  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.5.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   runtimeConfigRef:
