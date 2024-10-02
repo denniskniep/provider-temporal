@@ -18,7 +18,7 @@ kind: Provider
 metadata:
   name: provider-temporal
 spec:
-  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.3.0
+  package: xpkg.upbound.io/denniskniep/provider-temporal:v1.5.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   runtimeConfigRef:
