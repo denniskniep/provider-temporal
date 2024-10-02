@@ -94,7 +94,7 @@ dev: $(KIND) $(KUBECTL)
 	@sudo $(KIND) create cluster --name=$(PROJECT_NAME)-dev --kubeconfig=$(USER_DIR)/.kube/config
 	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
 	@$(INFO) Installing Crossplane CRDs
-	@$(KUBECTL) create -k https://github.com/crossplane/crossplane//cluster?ref=master
+	@$(KUBECTL) create -k https://github.com/crossplane/crossplane//cluster?ref=v1.16.2
 	@$(INFO) Installing Provider temporal CRDs
 	@$(KUBECTL) apply -R -f package/crds
 	@$(INFO) Start Provider temporal via: $(GO) run cmd/provider/main.go --debug

@@ -150,8 +150,8 @@ jobs:
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
-      - name: Start Temporal with docker-compose
-        run: docker-compose -f tests/docker-compose.yaml up -d
+      - name: Start Temporal with docker compose
+        run: docker compose -f tests/docker-compose.yaml up -d
 
       - name: Show docker container
         run: docker ps
