@@ -4,9 +4,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
 	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -32,7 +32,7 @@ func NewTemporalService(configData []byte) (*TemporalServiceImpl, error) {
 	var conf = TemporalServiceConfig{}
 	err := json.Unmarshal(configData, &conf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config data: %w", err)
+		return nil, errors.Wrap(err, "failed to unmarshal config data")
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -45,19 +45,19 @@ func NewTemporalService(configData []byte) (*TemporalServiceImpl, error) {
 	var dialOptions []grpc.DialOption
 	if conf.UseTLS {
 		if conf.CACertPem == "" || conf.CertPem == "" || conf.KeyPem == "" {
-			return nil, fmt.Errorf("TLS is enabled but one or more of the certificates or key are missing")
+			return nil, errors.New("TLS is enabled but one or more of the certificates or key are missing")
 		}
 
 		logger.Debug("Loading client certificate from strings")
 		cert, err := tls.X509KeyPair([]byte(conf.CertPem), []byte(conf.KeyPem))
 		if err != nil {
-			return nil, fmt.Errorf("failed to load client certificate: %w", err)
+			return nil, errors.Wrap(err, "failed to load client certificate")
 		}
 
 		logger.Debug("Loading CA certificate from string")
 		caCertPool := x509.NewCertPool()
 		if !caCertPool.AppendCertsFromPEM([]byte(conf.CACertPem)) {
-			return nil, fmt.Errorf("failed to append CA certificate")
+			return nil, errors.New("failed to append CA certificate")
 		}
 
 		logger.Debug("Creating TLS credentials")
@@ -83,7 +83,7 @@ func NewTemporalService(configData []byte) (*TemporalServiceImpl, error) {
 	logger.Debug("Dialing Temporal client", slog.String("hostPort", conf.HostPort))
 	temporalClient, err := client.Dial(clientOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to dial Temporal client: %w", err)
+		return nil, errors.Wrap(err, "failed to dial Temporal client")
 	}
 
 	logger.Debug("Successfully created Temporal client")
